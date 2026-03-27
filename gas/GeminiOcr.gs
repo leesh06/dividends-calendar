@@ -73,7 +73,7 @@ var GeminiOcr = (function() {
       }
 
       var payload = {
-        model: 'gpt-5.4-mini',
+        model: 'gpt-4.1-mini',
         messages: [
           {
             role: 'system',
