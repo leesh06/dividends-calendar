@@ -42,6 +42,8 @@ var GeminiOcr = (function() {
     '- 삼성증권: 한국 ETF, KODEX/TIGER/PLUS 등',
     '',
     '주의사항:',
+    '- 반드시 이미지에 보이는 모든 종목을 빠짐없이 추출하세요. 종목명이 잘려 보여도 티커와 수량이 있으면 포함하세요.',
+    '- 테이블의 각 행을 하나씩 확인하여 누락된 종목이 없는지 검증하세요.',
     '- 수량은 "보유수량", "가능수량", "매도가능" 컬럼에서 찾으세요',
     '- 숫자에서 쉼표는 제거하고 순수 숫자만 반환',
     '- 원화예수금이 있으면 포함: ticker="CASH_KRW", name="원화예수금", quantity=1, avgPrice=금액, currentPrice=금액, evalAmount=금액, currency="KRW", market="KR"',
@@ -89,7 +91,7 @@ var GeminiOcr = (function() {
           }
         ],
         response_format: { type: 'json_object' },
-        max_tokens: 4096,
+        max_tokens: 8192,
         temperature: 0.1
       };
 
