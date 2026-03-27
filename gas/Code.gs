@@ -81,19 +81,24 @@ function doPost(e) {
 var EXCHANGE_RATE_URL = 'https://api.exchangerate-api.com/v4/latest/USD';
 var YAHOO_CHART_BASE = 'https://query1.finance.yahoo.com/v8/finance/chart/';
 
-/** 환율 조회 (exchangerate-api.com - 무료) */
+/** 환율 조회 (Yahoo Finance - 실시간) */
 function getExchangeRate_() {
-  var res = UrlFetchApp.fetch(EXCHANGE_RATE_URL, { muteHttpExceptions: true });
+  var url = YAHOO_CHART_BASE + 'USDKRW=X?range=1d&interval=1d';
+  var res = UrlFetchApp.fetch(url, {
+    muteHttpExceptions: true,
+    headers: { 'User-Agent': 'Mozilla/5.0' }
+  });
   if (res.getResponseCode() !== 200) {
     throw new Error('환율 조회 실패: ' + res.getResponseCode());
   }
-  var data = JSON.parse(res.getContentText());
-  if (!data || !data.rates || !data.rates.KRW) {
+  var json = JSON.parse(res.getContentText());
+  if (!json.chart || !json.chart.result) {
     throw new Error('KRW 환율 없음');
   }
+  var rate = json.chart.result[0].meta.regularMarketPrice;
   return {
-    rate: data.rates.KRW,
-    lastUpdated: data.date
+    rate: rate,
+    lastUpdated: Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyy-MM-dd HH:mm')
   };
 }
 
