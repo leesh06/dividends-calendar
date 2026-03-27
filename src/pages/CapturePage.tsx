@@ -223,10 +223,12 @@ export default function CapturePage() {
           )}
 
           {hasCashInResult && (
-            <div className="flex items-center gap-1.5 px-1">
-              <div className="w-1.5 h-1.5 rounded-full bg-success" />
-              <span className="text-xs text-dark-text-muted">예수금이 자동 인식되었습니다</span>
-            </div>
+            <Card className="!p-3 border-success/30">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-success" />
+                <span className="text-sm font-medium text-success">예수금이 자동 인식되었습니다</span>
+              </div>
+            </Card>
           )}
 
           {/* 계좌 선택 + 저장 */}
