@@ -127,12 +127,12 @@ export default function DashboardPage() {
         <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full -translate-y-1/2 translate-x-1/2" />
         <div className="relative flex items-center justify-between">
           <div>
-            <p className="text-xs text-dark-text-muted font-medium tracking-wide uppercase mb-1">총 자산</p>
-            <p className="text-2xl font-extrabold text-dark-text tracking-tight">
+            <p className="text-sm text-dark-text-muted font-semibold tracking-wide uppercase mb-1">총 자산</p>
+            <p className="text-3xl font-extrabold text-dark-text tracking-tight">
               {formatCurrency(totalAsset, currentCurrency)}
             </p>
             {rate > 0 && (
-              <p className="text-[10px] text-dark-text-muted mt-1.5">
+              <p className="text-xs text-dark-text-muted mt-1.5">
                 $1 = ₩{rate.toLocaleString()}
               </p>
             )}

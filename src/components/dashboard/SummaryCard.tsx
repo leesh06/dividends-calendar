@@ -46,8 +46,8 @@ export default function SummaryCard({
     <div className="grid grid-cols-3 gap-2">
       {items.map((item) => (
         <Card key={item.label} className="!p-3 text-center relative overflow-hidden">
-          <p className="text-[10px] text-dark-text-muted mb-1.5 font-medium">{item.label}</p>
-          <p className={`text-sm font-bold tabular-nums ${
+          <p className="text-xs text-dark-text-muted mb-1.5 font-semibold">{item.label}</p>
+          <p className={`text-base font-extrabold tabular-nums ${
             item.accent ? 'text-accent-light' : 'text-dark-text'
           }`}>
             {item.value}
