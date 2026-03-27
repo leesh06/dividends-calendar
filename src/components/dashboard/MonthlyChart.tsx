@@ -22,6 +22,7 @@ export interface MonthlyDividendData {
   month: number;
   actual: number;
   estimated: number;
+  lastYear: number;
 }
 
 const BAR_RADIUS = 4;
@@ -30,28 +31,42 @@ const ACTUAL_COLOR = '#3B82F6';
 const ESTIMATED_COLOR = 'rgba(59, 130, 246, 0.35)';
 
 /** 커스텀 툴팁 */
-function CustomTooltip({ active, payload, label, currencySymbol }: {
+function CustomTooltip({ active, payload, label, currencySymbol, currentMonth }: {
   active?: boolean;
-  payload?: { value: number; dataKey: string }[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  payload?: any[];
   label?: string;
   currencySymbol: string;
+  currentMonth: number;
 }) {
   if (!active || !payload) return null;
 
   const actual = payload.find((p) => p.dataKey === 'actual')?.value || 0;
   const estimated = payload.find((p) => p.dataKey === 'estimated')?.value || 0;
-  const total = actual + estimated;
+  const thisYear = actual + estimated;
+  const lastYear = payload[0]?.payload?.lastYear || 0;
+  const month = payload[0]?.payload?.monthNum || 0;
+
+  // 지난 달: 올해 확정 vs 작년, 안 지난 달: 예상 vs 작년
+  const isPast = month <= currentMonth;
 
   return (
     <div className="bg-dark-surface border border-dark-border rounded-lg px-3 py-2 text-xs">
       <p className="text-white font-medium mb-1">{label}</p>
-      {actual > 0 && (
-        <p className="text-blue-400">확정: {currencySymbol}{formatNumber(actual)}</p>
+      {isPast ? (
+        <p className="text-blue-400">
+          올해: {currencySymbol}{formatNumber(thisYear)}
+        </p>
+      ) : (
+        <p className="text-blue-300/60">
+          예상: {currencySymbol}{formatNumber(thisYear)}
+        </p>
       )}
-      {estimated > 0 && (
-        <p className="text-blue-300/60">예상: {currencySymbol}{formatNumber(estimated)}</p>
+      {lastYear > 0 && (
+        <p className="text-dark-text-muted">
+          작년: {currencySymbol}{formatNumber(lastYear)}
+        </p>
       )}
-      <p className="text-white mt-1 font-medium">합계: {currencySymbol}{formatNumber(total)}</p>
     </div>
   );
 }
@@ -59,8 +74,10 @@ function CustomTooltip({ active, payload, label, currencySymbol }: {
 export default function MonthlyChart({ data, currentMonth, currency }: MonthlyChartProps) {
   const chartData = data.map((d) => ({
     name: MONTH_LABELS[d.month - 1],
+    monthNum: d.month,
     actual: d.actual,
     estimated: d.estimated,
+    lastYear: d.lastYear,
     total: d.actual + d.estimated,
     isCurrent: d.month === currentMonth,
   }));
@@ -81,7 +98,7 @@ export default function MonthlyChart({ data, currentMonth, currency }: MonthlyCh
           <YAxis hide />
           <Tooltip
             cursor={{ fill: 'rgba(255,255,255,0.05)' }}
-            content={<CustomTooltip currencySymbol={currencySymbol} />}
+            content={<CustomTooltip currencySymbol={currencySymbol} currentMonth={currentMonth} />}
           />
           <Bar dataKey="actual" stackId="div" radius={[0, 0, 0, 0]} name="확정">
             {chartData.map((_entry, idx) => (

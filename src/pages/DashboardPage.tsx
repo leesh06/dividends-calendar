@@ -47,29 +47,45 @@ export default function DashboardPage() {
     }, 0);
   }, [holdings, convert]);
 
-  /** 월별 차트 데이터 (주당배당금 × 보유수량) */
+  const lastYear = now.getFullYear() - 1;
+
+  /** 월별 차트 데이터 (주당배당금 × 보유수량) + 작년 동월 비교 */
   const monthlyData: MonthlyDividendData[] = useMemo(() => {
     const result: MonthlyDividendData[] = [];
     for (let m = 1; m <= MONTHS_IN_YEAR; m++) {
       let actual = 0;
       let estimated = 0;
+      // 올해 배당
       dividends.forEach((d) => {
         const date = new Date(d.exDate);
         if (date.getMonth() + 1 !== m) return;
         const holding = holdings.find((h) => h.ticker === d.ticker);
         const qty = holding ? holding.quantity : 0;
         const amount = convert(d.amount * qty * AFTER_TAX_RATE, d.currency);
-        // 이미 지난 월은 모두 확정 처리, 미래 월만 예상
         if (m <= currentMonth) {
           actual += amount;
         } else {
           estimated += amount;
         }
       });
-      result.push({ month: m, actual, estimated });
+      // 작년 동월 배당 (현재 보유수량 기준)
+      let lastYearAmount = 0;
+      allDividends
+        .filter((d) => {
+          const date = new Date(d.exDate);
+          return date.getFullYear() === lastYear
+            && date.getMonth() + 1 === m
+            && d.status === 'actual';
+        })
+        .forEach((d) => {
+          const holding = holdings.find((h) => h.ticker === d.ticker);
+          const qty = holding ? holding.quantity : 0;
+          lastYearAmount += convert(d.amount * qty * AFTER_TAX_RATE, d.currency);
+        });
+      result.push({ month: m, actual, estimated, lastYear: lastYearAmount });
     }
     return result;
-  }, [dividends, holdings, convert, currentMonth]);
+  }, [dividends, allDividends, holdings, convert, currentMonth, lastYear]);
 
   /** 연간 배당금 합계 (월별 차트와 동일 데이터 사용) */
   const annualDividend = useMemo(() => {
