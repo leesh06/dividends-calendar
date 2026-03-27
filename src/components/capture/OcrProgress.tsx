@@ -6,7 +6,6 @@ interface OcrProgressProps {
   error: string | null;
 }
 
-const PERCENT = 100;
 
 /** OCR 진행률 바 + 상태 텍스트 */
 export default function OcrProgress({ isProcessing, confidence, error }: OcrProgressProps) {

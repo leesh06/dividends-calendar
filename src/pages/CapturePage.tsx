@@ -65,8 +65,8 @@ export default function CapturePage() {
         quantity: h.quantity,
         avgPrice: h.avgPrice || 0,
         currentPrice: h.currentPrice || h.evalAmount / (h.quantity || 1) || 0,
-        currency: h.currency,
-        market: h.market,
+        currency: h.currency as 'USD' | 'KRW',
+        market: h.market as 'US' | 'KR',
       }));
       await upsertHoldings(selectedAccountId, mapped);
       // 저장 후 Yahoo Finance에서 현재가 업데이트
@@ -83,7 +83,7 @@ export default function CapturePage() {
     try {
       const created = await addAccount({
         accountName: newAccountName,
-        broker: newBroker,
+        broker: newBroker as '키움증권' | '삼성증권',
         currency: newCurrency,
         isActive: true,
       });

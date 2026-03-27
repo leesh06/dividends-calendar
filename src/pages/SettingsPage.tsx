@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { useAccountStore } from '../stores/accountStore';
 import { useCurrencyStore } from '../stores/currencyStore';
 import { useExchangeRate } from '../hooks/useExchangeRate';
-import { addAccount, updateSetting } from '../services/sheetsApi';
+import { addAccount } from '../services/sheetsApi';
 import Card from '../components/common/Card';
 import Toggle from '../components/common/Toggle';
 import type { Broker, Currency } from '../types';

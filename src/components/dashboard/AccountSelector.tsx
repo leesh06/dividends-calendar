@@ -17,7 +17,7 @@ const BROKER_COLORS: Record<string, string> = {
 /** 계좌별 토글 카드 */
 export default function AccountSelector({ holdings }: AccountSelectorProps) {
   const { accounts, selectedAccountIds, toggleAccount, selectAll } = useAccountStore();
-  const { format, convert, currentCurrency } = useCurrency();
+  const { convert, currentCurrency } = useCurrency();
   const isAllSelected = selectedAccountIds.length === 0;
 
   /** 계좌별 총 평가금액 계산 (종목별 통화 기준으로 변환) */

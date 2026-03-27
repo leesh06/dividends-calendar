@@ -33,7 +33,7 @@ export default function DashboardPage() {
   const currentMonth = now.getMonth() + 1;
 
   const { holdings, isLoading: holdingsLoading } = useHoldings(selectedAccountIds);
-  const { dividends, totalAmount, isLoading: dividendsLoading } = useDividends(
+  const { dividends, isLoading: dividendsLoading } = useDividends(
     selectedAccountIds, now, holdings,
   );
 

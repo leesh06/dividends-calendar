@@ -130,7 +130,7 @@ export function generateEstimatedDividends(
       currency: holding.currency,
       frequency: 'monthly',
       status: 'estimated',
-      source: 'estimated',
+      source: 'finnhub',
       updatedAt: new Date().toISOString(),
     });
   });

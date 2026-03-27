@@ -1,7 +1,7 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 import { NAV_TABS } from '../../utils/constants';
 
-const ICONS: Record<string, (active: boolean) => JSX.Element> = {
+const ICONS: Record<string, (active: boolean) => React.JSX.Element> = {
   home: (active) => (
     <svg className="w-6 h-6" fill={active ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={active ? 0 : 1.5}

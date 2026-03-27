@@ -20,7 +20,7 @@ export async function recognize(
   const { data } = await w.recognize(image);
 
   // Tesseract.js 버전에 따라 lines가 없을 수 있으므로 안전하게 처리
-  const rawLines = data.lines || [];
+  const rawLines = (data as unknown as Record<string, unknown>).lines as Array<{ text: string; confidence: number; bbox: { x0: number; y0: number; x1: number; y1: number } }> || [];
   const lines: OcrLine[] = rawLines.map((line: { text: string; confidence: number; bbox: { x0: number; y0: number; x1: number; y1: number } }) => ({
     text: line.text.trim(),
     confidence: line.confidence,

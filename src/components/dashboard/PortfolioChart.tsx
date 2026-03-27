@@ -65,10 +65,11 @@ export default function PortfolioChart({ data, currency }: PortfolioChartProps) 
                   color: '#f1f5f9',
                   padding: '6px 10px',
                 }}
-                formatter={(value: number, _key: string, entry: { payload?: { name?: string } }) => {
-                  const name = entry.payload?.name || '';
-                  return [`${name}: ${formatCurrency(value, currency)}`, ''];
-                }}
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                formatter={((value: any, _key: any, entry: any) => {
+                  const name = entry?.payload?.name || '';
+                  return [`${name}: ${formatCurrency(Number(value), currency)}`, ''];
+                }) as never}
                 separator=""
               />
             </PieChart>
