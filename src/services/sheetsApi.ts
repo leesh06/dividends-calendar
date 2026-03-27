@@ -57,7 +57,7 @@ async function gasPost<T>(body: Record<string, unknown>): Promise<T> {
   return json.data;
 }
 
-/** Holding 데이터 숫자 필드 변환 + 빈 행 필터 */
+/** Holding 데이터 숫자 필드 변환 + 빈 행/유령 종목 필터 */
 function normalizeHoldings(holdings: Holding[]): Holding[] {
   return holdings
     .filter((h) => h.ticker && h.ticker.toString().trim() !== '')
@@ -66,7 +66,8 @@ function normalizeHoldings(holdings: Holding[]): Holding[] {
       quantity: Number(h.quantity) || 0,
       avgPrice: Number(h.avgPrice) || 0,
       currentPrice: Number(h.currentPrice) || 0,
-    }));
+    }))
+    .filter((h) => h.quantity > 0 && (h.ticker.startsWith('CASH') || h.currentPrice > 0));
 }
 
 /** Dividend 데이터 숫자 필드 변환 + 빈 행 필터 + 누락 필드 기본값 */
@@ -132,6 +133,18 @@ export function addAccount(
   return gasPost<Account>({
     action: 'addAccount',
     account,
+  });
+}
+
+/** 보유 종목 삭제 */
+export function deleteHolding(
+  accountId: string,
+  ticker: string,
+): Promise<{ deleted: number }> {
+  return gasPost<{ deleted: number }>({
+    action: 'deleteHolding',
+    accountId,
+    ticker,
   });
 }
 

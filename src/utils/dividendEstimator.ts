@@ -1,4 +1,5 @@
 import type { Dividend, DividendEventItem, Holding } from '../types';
+import { AFTER_TAX_RATE } from './constants';
 
 const MONTHS_IN_YEAR = 12;
 
@@ -28,7 +29,7 @@ export function estimateDividend(
   return 0;
 }
 
-/** 연간 배당 수익률 계산 */
+/** 연간 배당 수익률 계산 (세후, 15.4% 원천징수 반영) */
 export function calcAnnualYield(
   holding: Holding,
   dividends: Dividend[],
@@ -50,7 +51,7 @@ export function calcAnnualYield(
   const annualDividend = recentDivs.reduce((sum, d) => sum + d.amount, 0);
   const PERCENT = 100;
 
-  return (annualDividend / holding.currentPrice) * PERCENT;
+  return (annualDividend * AFTER_TAX_RATE / holding.currentPrice) * PERCENT;
 }
 
 /** 보유 종목 기반으로 월별 배당 이벤트 아이템 생성 */

@@ -10,6 +10,8 @@ import type { Dividend, DividendEvent, DividendEventItem, Holding } from '../typ
 interface UseDividendsReturn {
   /** 올해 전체 배당 (확정 + 추정) */
   dividends: Dividend[];
+  /** 전체 배당 이력 (수익률 계산용) */
+  allDividends: Dividend[];
   /** 이번 달 총 배당액 */
   totalAmount: number;
   /** 캘린더 이벤트 (날짜별 그룹) */
@@ -138,6 +140,7 @@ export function useDividends(
 
   return {
     dividends: annualDividends,
+    allDividends,
     totalAmount,
     calendarEvents,
     isLoading,

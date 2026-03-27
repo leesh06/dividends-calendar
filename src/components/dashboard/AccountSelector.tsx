@@ -35,7 +35,7 @@ export default function AccountSelector({ holdings }: AccountSelectorProps) {
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between mb-1">
-        <h3 className="text-sm font-medium text-dark-text-secondary">계좌 선택</h3>
+        <h3 className="text-sm font-semibold text-dark-text-secondary tracking-wide uppercase">계좌 선택</h3>
         <button
           onClick={selectAll}
           className={`text-xs px-2.5 py-1 rounded-full transition-colors ${

@@ -33,7 +33,7 @@ export default function DashboardPage() {
   const currentMonth = now.getMonth() + 1;
 
   const { holdings, isLoading: holdingsLoading } = useHoldings(selectedAccountIds);
-  const { dividends, isLoading: dividendsLoading } = useDividends(
+  const { dividends, allDividends, isLoading: dividendsLoading } = useDividends(
     selectedAccountIds, now, holdings,
   );
 
@@ -105,27 +105,28 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="px-4 py-5 space-y-4">
+    <div className="px-4 py-5 space-y-5">
       {/* 헤더: 총 자산 + 환율 토글 */}
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-xs text-dark-text-muted">총 자산</p>
-          <p className="text-2xl font-bold text-dark-text">
-            {formatCurrency(totalAsset, currentCurrency)}
-          </p>
-        </div>
-        <div className="text-right">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-600/20 via-dark-surface to-dark-surface border border-blue-500/10 p-4">
+        <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full -translate-y-1/2 translate-x-1/2" />
+        <div className="relative flex items-center justify-between">
+          <div>
+            <p className="text-xs text-dark-text-muted font-medium tracking-wide uppercase mb-1">총 자산</p>
+            <p className="text-2xl font-extrabold text-dark-text tracking-tight">
+              {formatCurrency(totalAsset, currentCurrency)}
+            </p>
+            {rate > 0 && (
+              <p className="text-[10px] text-dark-text-muted mt-1.5">
+                $1 = ₩{rate.toLocaleString()}
+              </p>
+            )}
+          </div>
           <button
             onClick={toggle}
-            className="px-3 py-1.5 rounded-full bg-dark-surface border border-dark-border text-xs font-medium text-dark-text-secondary hover:text-dark-text transition-colors"
+            className="px-4 py-2 rounded-xl bg-dark-bg/60 border border-dark-border/60 text-xs font-bold text-dark-text-secondary hover:text-dark-text hover:border-blue-500/30 transition-all duration-200 backdrop-blur-sm"
           >
             {currentCurrency}
           </button>
-          {rate > 0 && (
-            <p className="text-[10px] text-dark-text-muted mt-1">
-              $1 = ₩{rate.toLocaleString()}
-            </p>
-          )}
         </div>
       </div>
 
@@ -162,10 +163,8 @@ export default function DashboardPage() {
 
       {/* 보유 종목 리스트 */}
       <HoldingsList
-        holdings={[...holdings].sort((a, b) =>
-          (b.currentPrice * b.quantity) - (a.currentPrice * a.quantity)
-        )}
-        dividends={dividends}
+        holdings={holdings}
+        dividends={allDividends}
       />
     </div>
   );

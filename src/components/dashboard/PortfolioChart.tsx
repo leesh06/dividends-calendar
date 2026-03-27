@@ -67,8 +67,8 @@ export default function PortfolioChart({ data, currency }: PortfolioChartProps) 
                 }}
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 formatter={((value: any, _key: any, entry: any) => {
-                  const name = entry?.payload?.name || '';
-                  return [`${name}: ${formatCurrency(Number(value), currency)}`, ''];
+                  const ticker = entry?.payload?.ticker || '';
+                  return [`${ticker}: ${formatCurrency(Number(value), currency)}`, ''];
                 }) as never}
                 separator=""
               />

@@ -68,6 +68,13 @@ function doPost(e) {
       case 'clearDividends':
         data = clearDividends_();
         break;
+      case 'deleteHolding':
+        data = SheetsService.deleteHolding(body.accountId, body.ticker);
+        break;
+      case 'fetchDividends':
+        DividendFetcher.fetchAll();
+        data = { success: true };
+        break;
       default:
         return jsonResponse_(false, null, '알 수 없는 action: ' + action);
     }

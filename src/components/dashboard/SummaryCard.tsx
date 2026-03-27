@@ -21,26 +21,39 @@ export default function SummaryCard({
 }: SummaryCardProps) {
   const { format } = useCurrency();
 
+  const items = [
+    {
+      label: `${monthLabel} 배당`,
+      value: format(monthlyDividend, currency),
+      accent: true,
+      icon: '📅',
+    },
+    {
+      label: '연간 배당',
+      value: format(annualDividend, currency),
+      accent: false,
+      icon: '💰',
+    },
+    {
+      label: '배당률',
+      value: formatPercent(dividendYield),
+      accent: dividendYield >= 0,
+      icon: '📈',
+    },
+  ];
+
   return (
     <div className="grid grid-cols-3 gap-2">
-      <Card className="!p-3 text-center">
-        <p className="text-[10px] text-dark-text-muted mb-1">{monthLabel} 배당</p>
-        <p className="text-base font-bold text-accent">
-          {format(monthlyDividend, currency)}
-        </p>
-      </Card>
-      <Card className="!p-3 text-center">
-        <p className="text-[10px] text-dark-text-muted mb-1">연간 배당</p>
-        <p className="text-base font-bold text-dark-text">
-          {format(annualDividend, currency)}
-        </p>
-      </Card>
-      <Card className="!p-3 text-center">
-        <p className="text-[10px] text-dark-text-muted mb-1">배당률</p>
-        <p className={`text-base font-bold ${dividendYield >= 0 ? 'text-success' : 'text-danger'}`}>
-          {formatPercent(dividendYield)}
-        </p>
-      </Card>
+      {items.map((item) => (
+        <Card key={item.label} className="!p-3 text-center relative overflow-hidden">
+          <p className="text-[10px] text-dark-text-muted mb-1.5 font-medium">{item.label}</p>
+          <p className={`text-sm font-bold tabular-nums ${
+            item.accent ? 'text-accent-light' : 'text-dark-text'
+          }`}>
+            {item.value}
+          </p>
+        </Card>
+      ))}
     </div>
   );
 }

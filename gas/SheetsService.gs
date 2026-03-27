@@ -160,6 +160,28 @@ var SheetsService = (function() {
       return newAccount;
     },
 
+    /** 보유 종목 삭제 (accountId + ticker 기준) */
+    deleteHolding: function(accountId, ticker) {
+      var sheet = getSpreadsheet_().getSheetByName(SHEET_NAMES.HOLDINGS);
+      if (!sheet) throw new Error('holdings 시트를 찾을 수 없습니다.');
+
+      var data = sheet.getDataRange().getValues();
+      var headers = data[0];
+      var tickerCol = headers.indexOf('ticker');
+      var accountCol = headers.indexOf('accountId');
+      var deleted = 0;
+
+      for (var i = data.length - 1; i >= 1; i--) {
+        var matchTicker = data[i][tickerCol] === ticker;
+        var matchAccount = !accountId || data[i][accountCol] === accountId;
+        if (matchTicker && matchAccount) {
+          sheet.deleteRow(i + 1);
+          deleted++;
+        }
+      }
+      return { deleted: deleted };
+    },
+
     /** 설정 업데이트 */
     updateSetting: function(key, value) {
       var sheet = getSpreadsheet_().getSheetByName(SHEET_NAMES.SETTINGS);
