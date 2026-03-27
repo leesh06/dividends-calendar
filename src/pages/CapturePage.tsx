@@ -19,6 +19,8 @@ export default function CapturePage() {
   const [newAccountName, setNewAccountName] = useState('');
   const [newBroker, setNewBroker] = useState('');
   const [newCurrency, setNewCurrency] = useState<'USD' | 'KRW'>('USD');
+  const [cashKrw, setCashKrw] = useState('');
+  const [hasCashInResult, setHasCashInResult] = useState(false);
 
   const handleImageSelect = useCallback(async (file: File) => {
     setStatus('analyzing');
@@ -39,6 +41,10 @@ export default function CapturePage() {
       const parsed = await parseCapture(base64);
       setResult(parsed);
       setStatus('analyzed');
+      // 예수금이 인식되었는지 체크
+      const hasCash = parsed.holdings.some((h) => h.ticker.startsWith('CASH'));
+      setHasCashInResult(hasCash);
+      if (hasCash) setCashKrw('');
 
       // 증권사에 맞는 계좌 자동 선택
       if (parsed.broker && accounts.length > 0) {
@@ -68,6 +74,21 @@ export default function CapturePage() {
         currency: h.currency as 'USD' | 'KRW',
         market: h.market as 'US' | 'KR',
       }));
+
+      // 수동 입력 예수금 추가 (OCR에서 인식 못했을 때)
+      const cashAmount = Number(cashKrw.replace(/,/g, '')) || 0;
+      if (cashAmount > 0 && !hasCashInResult) {
+        mapped.push({
+          ticker: 'CASH_KRW',
+          name: '원화예수금',
+          quantity: 1,
+          avgPrice: cashAmount,
+          currentPrice: cashAmount,
+          currency: 'KRW',
+          market: 'KR',
+        });
+      }
+
       await upsertHoldings(selectedAccountId, mapped);
       // 저장 후 Yahoo Finance에서 현재가 업데이트
       await updateQuotes().catch(() => {});
@@ -103,6 +124,8 @@ export default function CapturePage() {
     setError(null);
     setResult(null);
     setSelectedAccountId('');
+    setCashKrw('');
+    setHasCashInResult(false);
   }, []);
 
   /** 숫자 포맷 (1000 → 1,000) */
@@ -175,6 +198,36 @@ export default function CapturePage() {
               </Card>
             ))}
           </div>
+
+          {/* 예수금 수동 입력 (인식 못했을 때) */}
+          {!hasCashInResult && (
+            <Card className="!p-3">
+              <label className="text-xs text-dark-text-muted block mb-1.5">
+                원화예수금 (인식되지 않았다면 직접 입력)
+              </label>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-dark-text-muted">₩</span>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="0"
+                  value={cashKrw}
+                  onChange={(e) => {
+                    const raw = e.target.value.replace(/[^0-9]/g, '');
+                    setCashKrw(raw ? Number(raw).toLocaleString() : '');
+                  }}
+                  className="flex-1 bg-dark-bg text-dark-text text-sm rounded-lg px-3 py-2 border border-dark-border focus:border-accent outline-none tabular-nums"
+                />
+              </div>
+            </Card>
+          )}
+
+          {hasCashInResult && (
+            <div className="flex items-center gap-1.5 px-1">
+              <div className="w-1.5 h-1.5 rounded-full bg-success" />
+              <span className="text-xs text-dark-text-muted">예수금이 자동 인식되었습니다</span>
+            </div>
+          )}
 
           {/* 계좌 선택 + 저장 */}
           <Card className="!p-3 space-y-3">
