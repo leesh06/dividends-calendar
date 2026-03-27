@@ -47,24 +47,25 @@ function CustomTooltip({ active, payload, label, currencySymbol, currentMonth }:
   const lastYear = payload[0]?.payload?.lastYear || 0;
   const month = payload[0]?.payload?.monthNum || 0;
 
-  // 지난 달: 올해 확정 vs 작년, 안 지난 달: 예상 vs 작년
   const isPast = month <= currentMonth;
 
   return (
     <div className="bg-dark-surface border border-dark-border rounded-lg px-3 py-2 text-xs">
       <p className="text-white font-medium mb-1">{label}</p>
       {isPast ? (
-        <p className="text-blue-400">
-          올해: {currencySymbol}{formatNumber(thisYear)}
-        </p>
+        <>
+          <p className="text-blue-400">
+            올해: {currencySymbol}{formatNumber(thisYear)}
+          </p>
+          {lastYear > 0 && (
+            <p className="text-dark-text-muted">
+              작년: {currencySymbol}{formatNumber(lastYear)}
+            </p>
+          )}
+        </>
       ) : (
         <p className="text-blue-300/60">
           예상: {currencySymbol}{formatNumber(thisYear)}
-        </p>
-      )}
-      {lastYear > 0 && (
-        <p className="text-dark-text-muted">
-          작년: {currencySymbol}{formatNumber(lastYear)}
         </p>
       )}
     </div>
