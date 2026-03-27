@@ -73,7 +73,7 @@ var GeminiOcr = (function() {
       }
 
       var payload = {
-        model: 'gpt-4.1-mini',
+        model: 'gpt-5.4-mini',
         messages: [
           {
             role: 'system',
@@ -91,7 +91,7 @@ var GeminiOcr = (function() {
           }
         ],
         response_format: { type: 'json_object' },
-        max_tokens: 8192,
+        max_completion_tokens: 8192,
         temperature: 0.1
       };
 
