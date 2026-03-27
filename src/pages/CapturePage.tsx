@@ -8,9 +8,37 @@ import Spinner from '../components/common/Spinner';
 
 type Status = 'idle' | 'analyzing' | 'analyzed' | 'saving' | 'saved' | 'error';
 
+/** 복수 OCR 결과를 하나로 합치기 (같은 ticker는 수량/금액 합산) */
+function mergeResults(results: CaptureResult[]): CaptureResult {
+  const broker = results[0]?.broker || '알 수 없음';
+  const holdingsMap = new Map<string, CaptureResult['holdings'][number]>();
+
+  results.forEach((r) => {
+    r.holdings.forEach((h) => {
+      const existing = holdingsMap.get(h.ticker);
+      if (existing) {
+        // 같은 ticker → 수량/금액 합산 (연금 납입분 + 회사 납입분 등)
+        existing.quantity += h.quantity;
+        existing.evalAmount += h.evalAmount;
+        existing.purchaseAmount += h.purchaseAmount;
+        existing.profitLoss += h.profitLoss;
+        // 평균가 재계산
+        if (existing.quantity > 0) {
+          existing.avgPrice = existing.purchaseAmount / existing.quantity;
+          existing.currentPrice = existing.evalAmount / existing.quantity;
+        }
+      } else {
+        holdingsMap.set(h.ticker, { ...h });
+      }
+    });
+  });
+
+  return { broker, holdings: Array.from(holdingsMap.values()) };
+}
+
 export default function CapturePage() {
   const { accounts, addAccount: addAccountToStore } = useAccountStore();
-  const [preview, setPreview] = useState<string | null>(null);
+  const [previews, setPreviews] = useState<string[]>([]);
   const [status, setStatus] = useState<Status>('idle');
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<CaptureResult | null>(null);
@@ -21,36 +49,57 @@ export default function CapturePage() {
   const [newCurrency, setNewCurrency] = useState<'USD' | 'KRW'>('USD');
   const [cashKrw, setCashKrw] = useState('');
   const [hasCashInResult, setHasCashInResult] = useState(false);
+  const [analyzeProgress, setAnalyzeProgress] = useState({ done: 0, total: 0 });
 
-  const handleImageSelect = useCallback(async (file: File) => {
-    setStatus('analyzing');
-    setError(null);
-    setResult(null);
+  const handleImageSelect = useCallback(async (files: File[]) => {
+    // 기존 미리보기에 추가
+    const newPreviews: string[] = [];
+    const base64List: string[] = [];
 
-    try {
-      // 미리보기 생성
+    for (const file of files) {
       const base64 = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = (e) => resolve(e.target?.result as string);
         reader.onerror = () => reject(new Error('이미지 읽기 실패'));
         reader.readAsDataURL(file);
       });
+      newPreviews.push(base64);
+      base64List.push(base64);
+    }
 
-      setPreview(base64);
+    setPreviews((prev) => [...prev, ...newPreviews]);
 
-      const parsed = await parseCapture(base64);
-      setResult(parsed);
+    // 분석 시작
+    setStatus('analyzing');
+    setError(null);
+
+    const total = base64List.length;
+    setAnalyzeProgress({ done: 0, total });
+
+    try {
+      const ocrResults: CaptureResult[] = [];
+      // 기존 결과가 있으면 포함
+      if (result) ocrResults.push(result);
+
+      for (let i = 0; i < base64List.length; i++) {
+        const parsed = await parseCapture(base64List[i]);
+        ocrResults.push(parsed);
+        setAnalyzeProgress({ done: i + 1, total });
+      }
+
+      const merged = mergeResults(ocrResults);
+      setResult(merged);
       setStatus('analyzed');
-      // 예수금이 인식되었는지 체크
-      const hasCash = parsed.holdings.some((h) => h.ticker.startsWith('CASH'));
+
+      const hasCash = merged.holdings.some((h) => h.ticker.startsWith('CASH'));
       setHasCashInResult(hasCash);
       if (hasCash) setCashKrw('');
 
       // 증권사에 맞는 계좌 자동 선택
-      if (parsed.broker && accounts.length > 0) {
+      if (merged.broker && accounts.length > 0 && !selectedAccountId) {
         const match = accounts.find(
-          (a) => a.broker.includes(parsed.broker.replace('증권', '')) ||
-                 parsed.broker.includes(a.broker.replace('증권', ''))
+          (a) => a.broker.includes(merged.broker.replace('증권', '')) ||
+                 merged.broker.includes(a.broker.replace('증권', ''))
         );
         if (match) setSelectedAccountId(match.accountId);
       }
@@ -58,7 +107,11 @@ export default function CapturePage() {
       setError(err instanceof Error ? err.message : 'AI 분석 중 오류 발생');
       setStatus('error');
     }
-  }, [accounts]);
+  }, [accounts, result, selectedAccountId]);
+
+  const handleRemoveImage = useCallback((index: number) => {
+    setPreviews((prev) => prev.filter((_, i) => i !== index));
+  }, []);
 
   const handleSave = useCallback(async () => {
     if (!selectedAccountId || !result) return;
@@ -90,14 +143,13 @@ export default function CapturePage() {
       }
 
       await upsertHoldings(selectedAccountId, mapped);
-      // 저장 후 Yahoo Finance에서 현재가 업데이트
       await updateQuotes().catch(() => {});
       setStatus('saved');
     } catch {
       setError('저장 실패. 다시 시도해주세요.');
       setStatus('error');
     }
-  }, [selectedAccountId, result]);
+  }, [selectedAccountId, result, cashKrw, hasCashInResult]);
 
   const handleAddAccount = useCallback(async () => {
     if (!newAccountName || !newBroker) return;
@@ -119,13 +171,14 @@ export default function CapturePage() {
   }, [newAccountName, newBroker, newCurrency, addAccountToStore]);
 
   const handleReset = useCallback(() => {
-    setPreview(null);
+    setPreviews([]);
     setStatus('idle');
     setError(null);
     setResult(null);
     setSelectedAccountId('');
     setCashKrw('');
     setHasCashInResult(false);
+    setAnalyzeProgress({ done: 0, total: 0 });
   }, []);
 
   /** 숫자 포맷 (1000 → 1,000) */
@@ -135,7 +188,11 @@ export default function CapturePage() {
     <div className="px-4 py-5 space-y-4">
       <h1 className="text-lg font-bold text-dark-text">캡처 업로드</h1>
 
-      <ImageUploader onImageSelect={handleImageSelect} preview={preview} />
+      <ImageUploader
+        onImageSelect={handleImageSelect}
+        previews={previews}
+        onRemove={handleRemoveImage}
+      />
 
       {/* 분석 중 */}
       {status === 'analyzing' && (
@@ -143,6 +200,11 @@ export default function CapturePage() {
           <Spinner />
           <span className="text-sm text-dark-text-secondary">
             AI가 이미지를 분석하고 있습니다...
+            {analyzeProgress.total > 1 && (
+              <span className="text-dark-text-muted ml-1">
+                ({analyzeProgress.done}/{analyzeProgress.total})
+              </span>
+            )}
           </span>
         </Card>
       )}
@@ -166,7 +228,7 @@ export default function CapturePage() {
                 {result.broker} · {result.holdings.length}종목 인식
               </span>
               <span className="text-xs text-accent bg-accent/10 px-2 py-0.5 rounded-full">
-                AI 분석
+                {previews.length > 1 ? `${previews.length}장 합산` : 'AI 분석'}
               </span>
             </div>
           </Card>
@@ -330,7 +392,7 @@ export default function CapturePage() {
       )}
 
       {/* 초기화 */}
-      {preview && (
+      {previews.length > 0 && (
         <button
           onClick={handleReset}
           className="w-full py-2.5 rounded-xl bg-dark-border text-dark-text-secondary text-sm font-medium hover:bg-dark-text-muted/30 transition-colors"
