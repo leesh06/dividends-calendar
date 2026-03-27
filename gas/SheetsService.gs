@@ -160,6 +160,39 @@ var SheetsService = (function() {
       return newAccount;
     },
 
+    /** 계좌 삭제 (계좌 + 해당 보유종목 모두 삭제) */
+    deleteAccount: function(accountId) {
+      var ss = getSpreadsheet_();
+
+      // 1. holdings 시트에서 해당 계좌 종목 삭제
+      var holdingsSheet = ss.getSheetByName(SHEET_NAMES.HOLDINGS);
+      if (holdingsSheet) {
+        var hData = holdingsSheet.getDataRange().getValues();
+        var hHeaders = hData[0];
+        var hAccountCol = hHeaders.indexOf('accountId');
+        for (var i = hData.length - 1; i >= 1; i--) {
+          if (hData[i][hAccountCol] === accountId) {
+            holdingsSheet.deleteRow(i + 1);
+          }
+        }
+      }
+
+      // 2. accounts 시트에서 계좌 삭제
+      var accountsSheet = ss.getSheetByName(SHEET_NAMES.ACCOUNTS);
+      if (accountsSheet) {
+        var aData = accountsSheet.getDataRange().getValues();
+        var aHeaders = aData[0];
+        var aIdCol = aHeaders.indexOf('accountId');
+        for (var j = aData.length - 1; j >= 1; j--) {
+          if (aData[j][aIdCol] === accountId) {
+            accountsSheet.deleteRow(j + 1);
+          }
+        }
+      }
+
+      return { deleted: accountId };
+    },
+
     /** 보유 종목 삭제 (accountId + ticker 기준) */
     deleteHolding: function(accountId, ticker) {
       var sheet = getSpreadsheet_().getSheetByName(SHEET_NAMES.HOLDINGS);

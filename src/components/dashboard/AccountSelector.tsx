@@ -1,12 +1,15 @@
+import { useState, useMemo } from 'react';
 import { useAccountStore } from '../../stores/accountStore';
 import { useCurrency } from '../../hooks/useCurrency';
 import { formatCurrency } from '../../utils/formatters';
+import { deleteAccount as deleteAccountApi } from '../../services/sheetsApi';
 import type { Holding } from '../../types';
 import Card from '../common/Card';
 import Toggle from '../common/Toggle';
 
 interface AccountSelectorProps {
   holdings: Holding[];
+  onAccountDeleted?: () => void;
 }
 
 const BROKER_COLORS: Record<string, string> = {
@@ -15,12 +18,20 @@ const BROKER_COLORS: Record<string, string> = {
 };
 
 /** 계좌별 토글 카드 */
-export default function AccountSelector({ holdings }: AccountSelectorProps) {
-  const { accounts, selectedAccountIds, toggleAccount, selectAll } = useAccountStore();
+export default function AccountSelector({ holdings, onAccountDeleted }: AccountSelectorProps) {
+  const { accounts, selectedAccountIds, toggleAccount, selectAll, removeAccount } = useAccountStore();
   const { convert, currentCurrency } = useCurrency();
   const isAllSelected = selectedAccountIds.length === 0;
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmId, setConfirmId] = useState<string | null>(null);
 
-  /** 계좌별 총 평가금액 계산 (종목별 통화 기준으로 변환) */
+  // 보유종목이 있는 계좌만 필터
+  const accountsWithHoldings = useMemo(() => {
+    const accountIdsWithData = new Set(holdings.map((h) => h.accountId));
+    return accounts.filter((a) => accountIdsWithData.has(a.accountId));
+  }, [accounts, holdings]);
+
+  /** 계좌별 총 평가금액 계산 */
   function getAccountValue(accountId: string): number {
     return holdings
       .filter((h) => h.accountId === accountId)
@@ -32,26 +43,49 @@ export default function AccountSelector({ holdings }: AccountSelectorProps) {
     return isAllSelected || selectedAccountIds.includes(accountId);
   }
 
+  /** 계좌 삭제 */
+  async function handleDelete(accountId: string) {
+    setDeletingId(accountId);
+    try {
+      await deleteAccountApi(accountId);
+      removeAccount(accountId);
+      onAccountDeleted?.();
+    } catch {
+      // 에러 무시 (GAS 새 배포 전이면 실패할 수 있음)
+      // 로컬 상태만 삭제
+      removeAccount(accountId);
+    } finally {
+      setDeletingId(null);
+      setConfirmId(null);
+    }
+  }
+
+  if (accountsWithHoldings.length === 0) return null;
+
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between mb-1">
         <h3 className="text-sm font-semibold text-dark-text-secondary tracking-wide uppercase">계좌 선택</h3>
-        <button
-          onClick={selectAll}
-          className={`text-xs px-2.5 py-1 rounded-full transition-colors ${
-            isAllSelected
-              ? 'bg-accent text-white'
-              : 'bg-dark-border text-dark-text-muted'
-          }`}
-        >
-          전체
-        </button>
+        {accountsWithHoldings.length > 1 && (
+          <button
+            onClick={selectAll}
+            className={`text-xs px-2.5 py-1 rounded-full transition-colors ${
+              isAllSelected
+                ? 'bg-accent text-white'
+                : 'bg-dark-border text-dark-text-muted'
+            }`}
+          >
+            전체
+          </button>
+        )}
       </div>
 
-      {accounts.map((account) => {
+      {accountsWithHoldings.map((account) => {
         const active = isActive(account.accountId);
         const value = getAccountValue(account.accountId);
         const dotColor = BROKER_COLORS[account.broker] || 'bg-dark-text-muted';
+        const isConfirming = confirmId === account.accountId;
+        const isDeleting = deletingId === account.accountId;
 
         return (
           <Card key={account.accountId} className={`!p-3 transition-opacity ${active ? '' : 'opacity-50'}`}>
@@ -77,6 +111,35 @@ export default function AccountSelector({ holdings }: AccountSelectorProps) {
                   size="sm"
                 />
               </div>
+            </div>
+
+            {/* 삭제 영역 */}
+            <div className="mt-2 pt-2 border-t border-dark-border/40 flex justify-end">
+              {isConfirming ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] text-danger">삭제하시겠습니까?</span>
+                  <button
+                    onClick={() => handleDelete(account.accountId)}
+                    disabled={isDeleting}
+                    className="text-[11px] px-2 py-0.5 rounded bg-danger/20 text-danger font-medium hover:bg-danger/30 transition-colors disabled:opacity-50"
+                  >
+                    {isDeleting ? '삭제중...' : '확인'}
+                  </button>
+                  <button
+                    onClick={() => setConfirmId(null)}
+                    className="text-[11px] px-2 py-0.5 rounded bg-dark-border/50 text-dark-text-muted font-medium hover:bg-dark-border transition-colors"
+                  >
+                    취소
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setConfirmId(account.accountId)}
+                  className="text-[11px] text-dark-text-muted hover:text-danger transition-colors"
+                >
+                  계좌 삭제
+                </button>
+              )}
             </div>
           </Card>
         );

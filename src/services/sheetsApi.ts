@@ -136,6 +136,16 @@ export function addAccount(
   });
 }
 
+/** 계좌 삭제 (계좌 + 해당 보유종목 모두 삭제) */
+export function deleteAccount(
+  accountId: string,
+): Promise<{ deleted: string }> {
+  return gasPost<{ deleted: string }>({
+    action: 'deleteAccount',
+    accountId,
+  });
+}
+
 /** 보유 종목 삭제 */
 export function deleteHolding(
   accountId: string,

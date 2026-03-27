@@ -14,6 +14,8 @@ interface AccountState {
   selectAll: () => void;
   /** 계좌 추가 */
   addAccount: (account: Account) => void;
+  /** 계좌 삭제 */
+  removeAccount: (accountId: string) => void;
 }
 
 export const useAccountStore = create<AccountState>((set) => ({
@@ -48,4 +50,10 @@ export const useAccountStore = create<AccountState>((set) => ({
 
   addAccount: (account) =>
     set((state) => ({ accounts: [...state.accounts, account] })),
+
+  removeAccount: (accountId) =>
+    set((state) => ({
+      accounts: state.accounts.filter((a) => a.accountId !== accountId),
+      selectedAccountIds: state.selectedAccountIds.filter((id) => id !== accountId),
+    })),
 }));

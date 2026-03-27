@@ -68,6 +68,9 @@ function doPost(e) {
       case 'clearDividends':
         data = clearDividends_();
         break;
+      case 'deleteAccount':
+        data = SheetsService.deleteAccount(body.accountId);
+        break;
       case 'deleteHolding':
         data = SheetsService.deleteHolding(body.accountId, body.ticker);
         break;
