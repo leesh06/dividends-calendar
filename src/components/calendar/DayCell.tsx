@@ -41,7 +41,7 @@ export default function DayCell({
           isSelected
             ? 'bg-amber-500 text-white'
             : isToday
-              ? 'text-accent font-bold border border-accent'
+              ? 'text-emerald-400 font-bold border border-emerald-400'
               : isCurrentMonth
                 ? 'text-dark-text'
                 : 'text-dark-text-muted'
