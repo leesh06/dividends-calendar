@@ -50,18 +50,28 @@ export default function DayCell({
         {day}
       </span>
 
-      {/* 배당 도트 */}
+      {/* 배당 도트: 확정=노란색, 예상=파란색, 오늘=초록색 */}
       {hasEvent && (
         <div
           className={`w-1.5 h-1.5 rounded-full mb-0.5 ${
-            hasActual ? 'bg-amber-400' : 'bg-amber-400/50'
+            isToday
+              ? 'bg-emerald-400'
+              : hasActual
+                ? 'bg-amber-400'
+                : 'bg-blue-400'
           }`}
         />
       )}
 
       {/* 금액 (축약) */}
       {hasEvent && totalAmount !== undefined && totalAmount > 0 && (
-        <span className="text-[9px] text-amber-400 font-medium leading-none">
+        <span className={`text-[9px] font-medium leading-none ${
+          isToday
+            ? 'text-emerald-400'
+            : hasActual
+              ? 'text-amber-400'
+              : 'text-blue-400'
+        }`}>
           {formatShort(totalAmount, currency)}
         </span>
       )}
