@@ -51,7 +51,7 @@ export default function DayDetailSheet({ date, event, onClose }: DayDetailSheetP
                   className="flex items-center justify-between py-2 border-b border-dark-border last:border-0"
                 >
                   <div className="flex items-center gap-3">
-                    <Badge market={market} status={item.status} label={item.ticker} />
+                    <Badge market={market} status={item.status} label={/^\d+$/.test(item.ticker) ? item.name : item.ticker} />
                     <div>
                       <p className="text-sm font-medium text-dark-text">{item.name}</p>
                       <p className="text-xs text-dark-text-muted">

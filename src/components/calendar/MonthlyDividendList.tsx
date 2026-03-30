@@ -118,7 +118,9 @@ export default function MonthlyDividendList({
             <Card key={idx} className="!p-3 !rounded-xl mb-1.5">
               <div className="flex items-center justify-between">
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-dark-text">{item.ticker}</p>
+                  <p className="text-sm font-medium text-dark-text">
+                    {/^\d+$/.test(item.ticker) ? item.name : item.ticker}
+                  </p>
                   <p className="text-[11px] text-dark-text-muted truncate">
                     {item.quantity}주 보유 · 주당 {formatCurrency(item.amount, item.currency)}
                   </p>
