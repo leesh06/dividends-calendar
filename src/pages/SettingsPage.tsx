@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { useAccountStore } from '../stores/accountStore';
 import { useCurrencyStore } from '../stores/currencyStore';
 import { useExchangeRate } from '../hooks/useExchangeRate';
-import { addAccount } from '../services/sheetsApi';
+import { addAccount, fetchDividends, updateQuotes } from '../services/sheetsApi';
 import Card from '../components/common/Card';
 import Toggle from '../components/common/Toggle';
 import type { Broker, Currency } from '../types';
@@ -23,6 +23,8 @@ export default function SettingsPage() {
     import.meta.env.VITE_GAS_WEB_APP_URL || '',
   );
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isFetchingDividends, setIsFetchingDividends] = useState(false);
+  const [dividendMsg, setDividendMsg] = useState('');
 
   const handleAddAccount = useCallback(async () => {
     if (!newName.trim()) return;
@@ -60,6 +62,20 @@ export default function SettingsPage() {
       setIsSyncing(false);
     }
   }, [refresh]);
+
+  const handleFetchDividends = useCallback(async () => {
+    setIsFetchingDividends(true);
+    setDividendMsg('');
+    try {
+      await updateQuotes();
+      await fetchDividends();
+      setDividendMsg('배당 수집 완료! 홈 탭에서 확인하세요.');
+    } catch {
+      setDividendMsg('배당 수집 실패. 다시 시도해주세요.');
+    } finally {
+      setIsFetchingDividends(false);
+    }
+  }, []);
 
   return (
     <div className="px-4 py-5 space-y-4">
@@ -176,6 +192,30 @@ export default function SettingsPage() {
             className="px-3 py-1.5 rounded-lg bg-dark-border text-xs text-dark-text-secondary hover:text-dark-text transition-colors disabled:opacity-50"
           >
             {isSyncing ? '동기화 중...' : '새로고침'}
+          </button>
+        </div>
+      </Card>
+
+      {/* 배당 수집 */}
+      <Card>
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-dark-text">배당 수집</p>
+            <p className="text-xs text-dark-text-muted">
+              Yahoo Finance에서 배당 데이터를 가져옵니다
+            </p>
+            {dividendMsg && (
+              <p className={`text-xs mt-1 ${dividendMsg.includes('완료') ? 'text-green-400' : 'text-red-400'}`}>
+                {dividendMsg}
+              </p>
+            )}
+          </div>
+          <button
+            onClick={handleFetchDividends}
+            disabled={isFetchingDividends}
+            className="px-3 py-1.5 rounded-lg bg-dark-border text-xs text-dark-text-secondary hover:text-dark-text transition-colors disabled:opacity-50"
+          >
+            {isFetchingDividends ? '수집 중...' : '수집하기'}
           </button>
         </div>
       </Card>
