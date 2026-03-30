@@ -173,9 +173,18 @@ export default function CapturePage() {
 
   const handleAddAccount = useCallback(async () => {
     if (!newAccountName || !newBroker) return;
+    // 같은 이름의 계좌가 이미 있으면 그걸 선택
+    const existing = accounts.find((a) => a.accountName === newAccountName.trim());
+    if (existing) {
+      setSelectedAccountId(existing.accountId);
+      setShowAddAccount(false);
+      setNewAccountName('');
+      setNewBroker('');
+      return;
+    }
     try {
       const created = await addAccount({
-        accountName: newAccountName,
+        accountName: newAccountName.trim(),
         broker: newBroker as '키움증권' | '삼성증권',
         currency: newCurrency,
         isActive: true,
