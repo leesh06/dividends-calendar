@@ -8,27 +8,28 @@ import Spinner from '../components/common/Spinner';
 
 type Status = 'idle' | 'analyzing' | 'analyzed' | 'saving' | 'saved' | 'error';
 
-/** 복수 OCR 결과를 하나로 합치기 (같은 ticker는 수량/금액 합산) */
+/** 복수 OCR 결과를 하나로 합치기 (같은 종목명은 수량/금액 합산) */
 function mergeResults(results: CaptureResult[]): CaptureResult {
   const broker = results[0]?.broker || '알 수 없음';
   const holdingsMap = new Map<string, CaptureResult['holdings'][number]>();
 
   results.forEach((r) => {
     r.holdings.forEach((h) => {
-      const existing = holdingsMap.get(h.ticker);
+      // 종목명 기준으로 합산 (GPT가 같은 종목에 다른 코드를 부여할 수 있으므로)
+      // CASH 항목은 ticker 기준 유지
+      const key = h.ticker.startsWith('CASH') ? h.ticker : h.name;
+      const existing = holdingsMap.get(key);
       if (existing) {
-        // 같은 ticker → 수량/금액 합산 (연금 납입분 + 회사 납입분 등)
         existing.quantity += h.quantity;
         existing.evalAmount += h.evalAmount;
         existing.purchaseAmount += h.purchaseAmount;
         existing.profitLoss += h.profitLoss;
-        // 평균가 재계산
         if (existing.quantity > 0) {
           existing.avgPrice = existing.purchaseAmount / existing.quantity;
           existing.currentPrice = existing.evalAmount / existing.quantity;
         }
       } else {
-        holdingsMap.set(h.ticker, { ...h });
+        holdingsMap.set(key, { ...h });
       }
     });
   });
@@ -236,14 +237,14 @@ export default function CapturePage() {
           {/* 종목 목록 */}
           <div className="space-y-2">
             {result.holdings.map((h, i) => (
-              <Card key={i} className="!p-3">
+              <Card key={i} className={`!p-3 ${h.ticker === 'UNKNOWN' ? 'border-yellow-500/50' : ''}`}>
                 <div className="flex items-center justify-between">
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-dark-text truncate">
                       {h.name}
                     </p>
                     <p className="text-xs text-dark-text-muted">
-                      {h.ticker} · {fmt(h.quantity)}주
+                      {h.ticker !== 'UNKNOWN' ? `${h.ticker} · ` : ''}{fmt(h.quantity)}주
                     </p>
                   </div>
                   <div className="text-right ml-3">
@@ -257,9 +258,46 @@ export default function CapturePage() {
                     )}
                   </div>
                 </div>
+                {h.ticker === 'UNKNOWN' && (
+                  <div className="mt-2 flex items-center gap-2">
+                    <span className="text-xs text-yellow-400 whitespace-nowrap">종목코드</span>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="6자리 숫자"
+                      maxLength={6}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/[^0-9]/g, '');
+                        e.target.value = val;
+                        if (val.length === 6) {
+                          setResult((prev) => {
+                            if (!prev) return prev;
+                            const updated = { ...prev, holdings: prev.holdings.map((item, idx) =>
+                              idx === i ? { ...item, ticker: val } : item
+                            )};
+                            return updated;
+                          });
+                        }
+                      }}
+                      className="flex-1 bg-dark-bg text-dark-text text-xs rounded-lg px-2 py-1.5 border border-yellow-500/50 focus:border-accent outline-none tabular-nums"
+                    />
+                  </div>
+                )}
               </Card>
             ))}
           </div>
+
+          {/* UNKNOWN 종목이 있으면 안내 */}
+          {result.holdings.some((h) => h.ticker === 'UNKNOWN') && (
+            <Card className="!p-3 border-yellow-500/30">
+              <p className="text-xs text-yellow-400">
+                종목코드가 없는 항목이 있습니다. 6자리 코드를 입력해주세요.
+              </p>
+              <p className="text-xs text-dark-text-muted mt-1">
+                입력한 코드는 저장되어 다음부터 자동 적용됩니다.
+              </p>
+            </Card>
+          )}
 
           {/* 예수금 수동 입력 (인식 못했을 때) */}
           {!hasCashInResult && (
@@ -361,10 +399,10 @@ export default function CapturePage() {
             {!showAddAccount && (
               <button
                 onClick={handleSave}
-                disabled={!selectedAccountId || status === 'saving'}
+                disabled={!selectedAccountId || status === 'saving' || (result?.holdings.some((h) => h.ticker === 'UNKNOWN') ?? false)}
                 className="w-full py-2.5 rounded-xl bg-accent text-white text-sm font-medium disabled:opacity-40 hover:bg-accent/90 transition-colors"
               >
-                {status === 'saving' ? '저장 중...' : '시트에 저장'}
+                {status === 'saving' ? '저장 중...' : result?.holdings.some((h) => h.ticker === 'UNKNOWN') ? '종목코드를 입력해주세요' : '시트에 저장'}
               </button>
             )}
           </Card>

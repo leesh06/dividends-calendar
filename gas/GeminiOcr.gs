@@ -18,7 +18,10 @@ var GeminiOcr = (function() {
     '',
     '각 종목에 대해 다음 필드를 추출하세요:',
     '- name: 종목명 (한글 또는 영문 이름)',
-    '- ticker: 티커/종목코드 (미국 ETF는 영문 대문자 예: VCLT, VEA. 한국 ETF는 6자리 숫자)',
+    '- ticker: 티커/종목코드',
+    '  * 미국 ETF: 이미지에 보이는 영문 티커 그대로 (예: VCLT, VEA)',
+    '  * 한국 ETF: 이미지에 종목코드가 보이면 그대로, 안 보이면 반드시 "UNKNOWN"',
+    '  * 절대로 종목코드를 추측하거나 지어내지 마세요. 이미지에 없으면 "UNKNOWN"입니다.',
     '- quantity: 보유 수량 (정수)',
     '- avgPrice: 주당 매입 평균가. 매입금액을 수량으로 나눈 값 (숫자)',
     '- currentPrice: 주당 현재가. 평가금액을 수량으로 나눈 값 (숫자)',
@@ -42,7 +45,7 @@ var GeminiOcr = (function() {
     '- 삼성증권: 한국 ETF, KODEX/TIGER/PLUS 등',
     '',
     '주의사항:',
-    '- 반드시 이미지에 보이는 모든 종목을 빠짐없이 추출하세요. 종목명이 잘려 보여도 티커와 수량이 있으면 포함하세요.',
+    '- 반드시 이미지에 보이는 모든 종목을 빠짐없이 추출하세요. 종목명이 잘려 보여도 수량이 있으면 포함하세요.',
     '- 테이블의 각 행을 하나씩 확인하여 누락된 종목이 없는지 검증하세요.',
     '- 수량은 "보유수량", "가능수량", "매도가능" 컬럼에서 찾으세요',
     '- 숫자에서 쉼표는 제거하고 순수 숫자만 반환',
@@ -58,6 +61,22 @@ var GeminiOcr = (function() {
     '다음 JSON 형식으로만 반환하세요. 다른 텍스트 없이:',
     '{"broker": "키움증권" 또는 "삼성증권", "holdings": [종목 배열]}'
   ].join('\n');
+
+  /** holdings 시트에서 종목명→종목코드 매핑 조회 */
+  function getNameToTickerMap_() {
+    var map = {};
+    try {
+      var holdings = SheetsService.getHoldings();
+      holdings.forEach(function(h) {
+        if (h.name && h.ticker && h.ticker !== 'UNKNOWN') {
+          map[h.name] = h.ticker;
+        }
+      });
+    } catch (e) {
+      Logger.log('매핑 조회 실패 (무시): ' + e.message);
+    }
+    return map;
+  }
 
   return {
     /**
@@ -146,7 +165,16 @@ var GeminiOcr = (function() {
         parsed = { broker: '알 수 없음', holdings: parsed };
       }
 
-      Logger.log('OpenAI OCR 결과: ' + parsed.holdings.length + '종목 인식 (증권사: ' + parsed.broker + ')');
+      // holdings 시트에서 종목명→종목코드 매핑 적용
+      var nameMap = getNameToTickerMap_();
+      parsed.holdings.forEach(function(h) {
+        if (h.ticker === 'UNKNOWN' && nameMap[h.name]) {
+          h.ticker = nameMap[h.name];
+        }
+      });
+
+      var unknownCount = parsed.holdings.filter(function(h) { return h.ticker === 'UNKNOWN'; }).length;
+      Logger.log('OpenAI OCR 결과: ' + parsed.holdings.length + '종목 인식 (증권사: ' + parsed.broker + ', 미매핑: ' + unknownCount + ')');
       return parsed;
     }
   };
