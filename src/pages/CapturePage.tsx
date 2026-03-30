@@ -49,7 +49,9 @@ export default function CapturePage() {
   const [newBroker, setNewBroker] = useState('');
   const [newCurrency, setNewCurrency] = useState<'USD' | 'KRW'>('USD');
   const [cashKrw, setCashKrw] = useState('');
-  const [hasCashInResult, setHasCashInResult] = useState(false);
+  const [cashUsd, setCashUsd] = useState('');
+  const [hasCashKrwInResult, setHasCashKrwInResult] = useState(false);
+  const [hasCashUsdInResult, setHasCashUsdInResult] = useState(false);
   const [analyzeProgress, setAnalyzeProgress] = useState({ done: 0, total: 0 });
 
   const handleImageSelect = useCallback(async (files: File[]) => {
@@ -92,9 +94,12 @@ export default function CapturePage() {
       setResult(merged);
       setStatus('analyzed');
 
-      const hasCash = merged.holdings.some((h) => h.ticker.startsWith('CASH'));
-      setHasCashInResult(hasCash);
-      if (hasCash) setCashKrw('');
+      const hasCashKrw = merged.holdings.some((h) => h.ticker === 'CASH_KRW');
+      const hasCashUsd = merged.holdings.some((h) => h.ticker === 'CASH_USD');
+      setHasCashKrwInResult(hasCashKrw);
+      setHasCashUsdInResult(hasCashUsd);
+      if (hasCashKrw) setCashKrw('');
+      if (hasCashUsd) setCashUsd('');
 
       // 증권사에 맞는 계좌 자동 선택
       if (merged.broker && accounts.length > 0 && !selectedAccountId) {
@@ -130,16 +135,28 @@ export default function CapturePage() {
       }));
 
       // 수동 입력 예수금 추가 (OCR에서 인식 못했을 때)
-      const cashAmount = Number(cashKrw.replace(/,/g, '')) || 0;
-      if (cashAmount > 0 && !hasCashInResult) {
+      const cashKrwAmount = Number(cashKrw.replace(/,/g, '')) || 0;
+      if (cashKrwAmount > 0 && !hasCashKrwInResult) {
         mapped.push({
           ticker: 'CASH_KRW',
           name: '원화예수금',
           quantity: 1,
-          avgPrice: cashAmount,
-          currentPrice: cashAmount,
+          avgPrice: cashKrwAmount,
+          currentPrice: cashKrwAmount,
           currency: 'KRW',
           market: 'KR',
+        });
+      }
+      const cashUsdAmount = Number(cashUsd.replace(/,/g, '')) || 0;
+      if (cashUsdAmount > 0 && !hasCashUsdInResult) {
+        mapped.push({
+          ticker: 'CASH_USD',
+          name: '달러예수금',
+          quantity: 1,
+          avgPrice: cashUsdAmount,
+          currentPrice: cashUsdAmount,
+          currency: 'USD',
+          market: 'US',
         });
       }
 
@@ -152,7 +169,7 @@ export default function CapturePage() {
       setError('저장 실패. 다시 시도해주세요.');
       setStatus('error');
     }
-  }, [selectedAccountId, result, cashKrw, hasCashInResult]);
+  }, [selectedAccountId, result, cashKrw, cashUsd, hasCashKrwInResult, hasCashUsdInResult]);
 
   const handleAddAccount = useCallback(async () => {
     if (!newAccountName || !newBroker) return;
@@ -180,7 +197,9 @@ export default function CapturePage() {
     setResult(null);
     setSelectedAccountId('');
     setCashKrw('');
-    setHasCashInResult(false);
+    setCashUsd('');
+    setHasCashKrwInResult(false);
+    setHasCashUsdInResult(false);
     setAnalyzeProgress({ done: 0, total: 0 });
   }, []);
 
@@ -302,29 +321,54 @@ export default function CapturePage() {
           )}
 
           {/* 예수금 수동 입력 (인식 못했을 때) */}
-          {!hasCashInResult && (
-            <Card className="!p-3">
-              <label className="text-xs text-dark-text-muted block mb-1.5">
-                원화예수금 (인식되지 않았다면 직접 입력)
-              </label>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-dark-text-muted">₩</span>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  placeholder="0"
-                  value={cashKrw}
-                  onChange={(e) => {
-                    const raw = e.target.value.replace(/[^0-9]/g, '');
-                    setCashKrw(raw ? Number(raw).toLocaleString() : '');
-                  }}
-                  className="flex-1 bg-dark-bg text-dark-text text-sm rounded-lg px-3 py-2 border border-dark-border focus:border-accent outline-none tabular-nums"
-                />
-              </div>
+          {(!hasCashKrwInResult || !hasCashUsdInResult) && (
+            <Card className="!p-3 space-y-2">
+              {!hasCashKrwInResult && (
+                <div>
+                  <label className="text-xs text-dark-text-muted block mb-1.5">
+                    원화예수금 (인식되지 않았다면 직접 입력)
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-dark-text-muted">₩</span>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="0"
+                      value={cashKrw}
+                      onChange={(e) => {
+                        const raw = e.target.value.replace(/[^0-9]/g, '');
+                        setCashKrw(raw ? Number(raw).toLocaleString() : '');
+                      }}
+                      className="flex-1 bg-dark-bg text-dark-text text-sm rounded-lg px-3 py-2 border border-dark-border focus:border-accent outline-none tabular-nums"
+                    />
+                  </div>
+                </div>
+              )}
+              {!hasCashUsdInResult && (
+                <div>
+                  <label className="text-xs text-dark-text-muted block mb-1.5">
+                    달러예수금 (인식되지 않았다면 직접 입력)
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-dark-text-muted">$</span>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      placeholder="0"
+                      value={cashUsd}
+                      onChange={(e) => {
+                        const raw = e.target.value.replace(/[^0-9.]/g, '');
+                        setCashUsd(raw);
+                      }}
+                      className="flex-1 bg-dark-bg text-dark-text text-sm rounded-lg px-3 py-2 border border-dark-border focus:border-accent outline-none tabular-nums"
+                    />
+                  </div>
+                </div>
+              )}
             </Card>
           )}
 
-          {hasCashInResult && (
+          {hasCashKrwInResult && hasCashUsdInResult && (
             <Card className="!p-3 border-success/30">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-success" />

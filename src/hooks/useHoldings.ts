@@ -5,6 +5,7 @@ import type { Holding } from '../types';
 
 interface UseHoldingsReturn {
   holdings: Holding[];
+  allHoldings: Holding[];
   isLoading: boolean;
   error: string | null;
   refetch: () => Promise<void>;
@@ -43,5 +44,5 @@ export function useHoldings(accountIds: string[]): UseHoldingsReturn {
     ? allHoldings.filter((h) => accountIds.includes(h.accountId))
     : allHoldings;
 
-  return { holdings, isLoading, error, refetch: fetchData };
+  return { holdings, allHoldings, isLoading, error, refetch: fetchData };
 }

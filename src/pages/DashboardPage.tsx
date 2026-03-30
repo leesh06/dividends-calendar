@@ -32,7 +32,7 @@ export default function DashboardPage() {
   const now = new Date();
   const currentMonth = now.getMonth() + 1;
 
-  const { holdings, isLoading: holdingsLoading, refetch: refetchHoldings } = useHoldings(selectedAccountIds);
+  const { holdings, allHoldings: allHoldingsData, isLoading: holdingsLoading, refetch: refetchHoldings } = useHoldings(selectedAccountIds);
   const { dividends, allDividends, isLoading: dividendsLoading } = useDividends(
     selectedAccountIds, now, holdings,
   );
@@ -147,7 +147,7 @@ export default function DashboardPage() {
       </div>
 
       {/* 계좌 선택 */}
-      <AccountSelector holdings={holdings} onAccountDeleted={refetchHoldings} />
+      <AccountSelector allHoldings={allHoldingsData} onAccountDeleted={refetchHoldings} />
 
       {/* 배당 요약 */}
       <SummaryCard

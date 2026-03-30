@@ -71,19 +71,27 @@ function normalizeHoldings(holdings: Holding[]): Holding[] {
     .filter((h) => h.quantity > 0 && (h.ticker.startsWith('CASH') || h.currentPrice > 0));
 }
 
-/** Dividend 데이터 숫자 필드 변환 + 빈 행 필터 + 누락 필드 기본값 */
+/** Dividend 데이터 숫자 필드 변환 + 빈 행 필터 + 중복 제거 + 누락 필드 기본값 */
 function normalizeDividends(dividends: Dividend[]): Dividend[] {
+  const seen = new Set<string>();
   return dividends
     .filter((d) => d.ticker && d.ticker.toString().trim() !== '')
     .map((d) => ({
       ...d,
+      ticker: String(d.ticker),
       amount: Number(d.amount) || 0,
       currency: d.currency || 'USD',
       status: d.status || 'actual',
       frequency: d.frequency || 'monthly',
       source: d.source || 'finnhub',
       updatedAt: d.updatedAt || '',
-    }));
+    }))
+    .filter((d) => {
+      const key = `${d.ticker}_${d.exDate}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
 }
 
 /** 전체 데이터 일괄 조회 */

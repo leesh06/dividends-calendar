@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { useAccountStore } from '../stores/accountStore';
 import { useCurrencyStore } from '../stores/currencyStore';
 import { useExchangeRate } from '../hooks/useExchangeRate';
-import { addAccount, fetchDividends, updateQuotes } from '../services/sheetsApi';
+import { addAccount, fetchDividends, updateQuotes, deleteAccount as deleteAccountApi } from '../services/sheetsApi';
 import Card from '../components/common/Card';
 import Toggle from '../components/common/Toggle';
 import type { Broker, Currency } from '../types';
@@ -11,7 +11,7 @@ const BROKER_OPTIONS: Broker[] = ['키움증권', '삼성증권'];
 const CURRENCY_OPTIONS: Currency[] = ['USD', 'KRW'];
 
 export default function SettingsPage() {
-  const { accounts, addAccount: addToStore } = useAccountStore();
+  const { accounts, addAccount: addToStore, removeAccount } = useAccountStore();
   const { currentCurrency, toggleCurrency } = useCurrencyStore();
   const { rate, lastUpdated, refresh } = useExchangeRate();
 
@@ -25,6 +25,8 @@ export default function SettingsPage() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [isFetchingDividends, setIsFetchingDividends] = useState(false);
   const [dividendMsg, setDividendMsg] = useState('');
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const handleAddAccount = useCallback(async () => {
     if (!newName.trim()) return;
@@ -53,6 +55,19 @@ export default function SettingsPage() {
       setShowAddForm(false);
     }
   }, [newName, newBroker, newCurrency, addToStore]);
+
+  const handleDeleteAccount = useCallback(async (accountId: string) => {
+    setDeletingId(accountId);
+    try {
+      await deleteAccountApi(accountId);
+      removeAccount(accountId);
+    } catch {
+      removeAccount(accountId);
+    } finally {
+      setDeletingId(null);
+      setConfirmDeleteId(null);
+    }
+  }, [removeAccount]);
 
   const handleSync = useCallback(async () => {
     setIsSyncing(true);
@@ -147,6 +162,30 @@ export default function SettingsPage() {
                       <p className="text-xs text-dark-text-muted">{acc.broker} · {acc.currency}</p>
                     </div>
                   </div>
+                  {confirmDeleteId === acc.accountId ? (
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleDeleteAccount(acc.accountId)}
+                        disabled={deletingId === acc.accountId}
+                        className="text-[11px] px-2 py-0.5 rounded bg-red-500/20 text-red-400 font-medium disabled:opacity-50"
+                      >
+                        {deletingId === acc.accountId ? '삭제중...' : '확인'}
+                      </button>
+                      <button
+                        onClick={() => setConfirmDeleteId(null)}
+                        className="text-[11px] px-2 py-0.5 rounded bg-dark-border/50 text-dark-text-muted font-medium"
+                      >
+                        취소
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setConfirmDeleteId(acc.accountId)}
+                      className="text-[11px] text-dark-text-muted hover:text-red-400 transition-colors"
+                    >
+                      삭제
+                    </button>
+                  )}
                 </div>
               </Card>
             ))}

@@ -8,7 +8,7 @@ import Card from '../common/Card';
 import Toggle from '../common/Toggle';
 
 interface AccountSelectorProps {
-  holdings: Holding[];
+  allHoldings: Holding[];
   onAccountDeleted?: () => void;
 }
 
@@ -18,22 +18,22 @@ const BROKER_COLORS: Record<string, string> = {
 };
 
 /** 계좌별 토글 카드 */
-export default function AccountSelector({ holdings, onAccountDeleted }: AccountSelectorProps) {
+export default function AccountSelector({ allHoldings, onAccountDeleted }: AccountSelectorProps) {
   const { accounts, selectedAccountIds, toggleAccount, selectAll, removeAccount } = useAccountStore();
   const { convert, currentCurrency } = useCurrency();
   const isAllSelected = selectedAccountIds.length === 0;
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
 
-  // 보유종목이 있는 계좌만 필터
+  // 보유종목이 있는 계좌만 필터 (전체 holdings 기준, 선택 상태와 무관하게)
   const accountsWithHoldings = useMemo(() => {
-    const accountIdsWithData = new Set(holdings.map((h) => h.accountId));
+    const accountIdsWithData = new Set(allHoldings.map((h) => h.accountId));
     return accounts.filter((a) => accountIdsWithData.has(a.accountId));
-  }, [accounts, holdings]);
+  }, [accounts, allHoldings]);
 
-  /** 계좌별 총 평가금액 계산 */
+  /** 계좌별 총 평가금액 계산 (전체 holdings 기준) */
   function getAccountValue(accountId: string): number {
-    return holdings
+    return allHoldings
       .filter((h) => h.accountId === accountId)
       .reduce((sum, h) => sum + convert(h.currentPrice * h.quantity, h.currency), 0);
   }
