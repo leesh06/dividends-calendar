@@ -152,10 +152,23 @@ var SheetsService = (function() {
       return { updated: updated };
     },
 
-    /** 계좌 추가 */
+    /** 계좌 추가 (같은 이름+증권사 계좌가 있으면 기존 계좌 반환) */
     addAccount: function(account) {
       var sheet = getSpreadsheet_().getSheetByName(SHEET_NAMES.ACCOUNTS);
       if (!sheet) throw new Error('accounts 시트를 찾을 수 없습니다.');
+
+      // 같은 이름+증권사 계좌가 이미 있으면 기존 계좌 반환
+      var data = sheet.getDataRange().getValues();
+      var headers = data[0];
+      var nameCol = headers.indexOf('accountName');
+      var brokerCol = headers.indexOf('broker');
+      for (var i = 1; i < data.length; i++) {
+        if (data[i][nameCol] === account.accountName && data[i][brokerCol] === account.broker) {
+          var existing = {};
+          headers.forEach(function(h, idx) { existing[h] = data[i][idx]; });
+          return existing;
+        }
+      }
 
       var newAccount = {
         accountId: generateId_('acc'),
