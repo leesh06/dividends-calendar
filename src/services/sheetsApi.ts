@@ -63,6 +63,7 @@ function normalizeHoldings(holdings: Holding[]): Holding[] {
     .filter((h) => h.ticker && h.ticker.toString().trim() !== '')
     .map((h) => ({
       ...h,
+      ticker: String(h.ticker),
       quantity: Number(h.quantity) || 0,
       avgPrice: Number(h.avgPrice) || 0,
       currentPrice: Number(h.currentPrice) || 0,
