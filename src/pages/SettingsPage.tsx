@@ -152,7 +152,7 @@ export default function SettingsPage() {
           </Card>
         ) : (
           <div className="space-y-2">
-            {accounts.map((acc) => (
+            {accounts.filter((acc) => acc.accountId && acc.accountName).map((acc) => (
               <Card key={acc.accountId} className="!p-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
