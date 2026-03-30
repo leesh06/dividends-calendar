@@ -178,6 +178,11 @@ export function updateQuotes(): Promise<{ updated: number }> {
   return gasPost<{ updated: number }>({ action: 'updateQuotes' });
 }
 
+/** 배당 데이터 수집 트리거 */
+export function fetchDividends(): Promise<{ success: boolean }> {
+  return gasPost<{ success: boolean }>({ action: 'fetchDividends' });
+}
+
 /** 캡처 이미지 분석 (Gemini AI) */
 export interface CaptureResult {
   broker: string;

@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useAccountStore } from '../stores/accountStore';
-import { parseCapture, upsertHoldings, addAccount, updateQuotes } from '../services/sheetsApi';
+import { parseCapture, upsertHoldings, addAccount, updateQuotes, fetchDividends } from '../services/sheetsApi';
 import type { CaptureResult } from '../services/sheetsApi';
 import ImageUploader from '../components/capture/ImageUploader';
 import Card from '../components/common/Card';
@@ -144,7 +144,9 @@ export default function CapturePage() {
       }
 
       await upsertHoldings(selectedAccountId, mapped);
-      await updateQuotes().catch(() => {});
+      // 백그라운드로 현재가 + 배당 수집 (실패해도 무시)
+      updateQuotes().catch(() => {});
+      fetchDividends().catch(() => {});
       setStatus('saved');
     } catch {
       setError('저장 실패. 다시 시도해주세요.');
