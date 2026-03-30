@@ -61,13 +61,20 @@ async function gasPost<T>(body: Record<string, unknown>): Promise<T> {
 function normalizeHoldings(holdings: Holding[]): Holding[] {
   return holdings
     .filter((h) => h.ticker && h.ticker.toString().trim() !== '')
-    .map((h) => ({
-      ...h,
-      ticker: String(h.ticker),
-      quantity: Number(h.quantity) || 0,
-      avgPrice: Number(h.avgPrice) || 0,
-      currentPrice: Number(h.currentPrice) || 0,
-    }))
+    .map((h) => {
+      let ticker = String(h.ticker);
+      // 한국 종목코드 6자리 패딩 (Sheets가 숫자로 저장해서 앞자리 0이 빠지는 문제)
+      if (/^\d+$/.test(ticker) && ticker.length < 6) {
+        ticker = ticker.padStart(6, '0');
+      }
+      return {
+        ...h,
+        ticker,
+        quantity: Number(h.quantity) || 0,
+        avgPrice: Number(h.avgPrice) || 0,
+        currentPrice: Number(h.currentPrice) || 0,
+      };
+    })
     .filter((h) => h.quantity > 0 && (h.ticker.startsWith('CASH') || h.currentPrice > 0));
 }
 

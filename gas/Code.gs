@@ -91,6 +91,15 @@ function doPost(e) {
 var EXCHANGE_RATE_URL = 'https://api.exchangerate-api.com/v4/latest/USD';
 var YAHOO_CHART_BASE = 'https://query1.finance.yahoo.com/v8/finance/chart/';
 
+/** 한국 종목코드 6자리 패딩 (Sheets가 숫자로 저장해서 앞자리 0이 빠지는 문제 대응) */
+function padKrTicker_(ticker, market) {
+  var t = ticker.toString().trim();
+  if (market === 'KR' && /^\d+$/.test(t)) {
+    while (t.length < 6) t = '0' + t;
+  }
+  return t;
+}
+
 /** 환율 조회 (Yahoo Finance - 실시간) */
 function getExchangeRate_() {
   var url = YAHOO_CHART_BASE + 'USDKRW=X?range=1d&interval=1d';
@@ -133,7 +142,7 @@ function getQuotes_() {
   holdings.forEach(function(h) {
     if (!h.ticker || seen[h.ticker]) return;
     seen[h.ticker] = true;
-    var t = h.ticker.toString().trim();
+    var t = padKrTicker_(h.ticker, h.market);
     if (t.indexOf('CASH') === 0) return;
     var yahooTicker = h.market === 'KR'
       ? t + '.KS'

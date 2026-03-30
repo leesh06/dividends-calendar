@@ -108,8 +108,9 @@ var DividendFetcher = (function() {
     Logger.log(market + ' ' + tickerList.length + '종목 배당 수집 시작 (Yahoo Finance)');
 
     tickerList.forEach(function(ticker) {
-      // 한국 ETF는 .KS 접미사 추가
-      var yahooTicker = market === 'KR' ? ticker + '.KS' : ticker;
+      // 한국 ETF는 6자리 패딩 + .KS 접미사 추가
+      var paddedTicker = padKrTicker_(ticker, market);
+      var yahooTicker = market === 'KR' ? paddedTicker + '.KS' : ticker;
       var url = YAHOO_BASE + yahooTicker + '?range=2y&interval=1mo&events=div';
       var result = httpGet_(url, { 'User-Agent': 'Mozilla/5.0' });
 
