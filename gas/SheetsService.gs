@@ -99,6 +99,16 @@ var SheetsService = (function() {
       var accountCol = headers.indexOf('accountId');
       var updated = 0;
 
+      // ticker_map 시트에서 기존 매핑 로드
+      var tickerMapSheet = getSpreadsheet_().getSheetByName('ticker_map');
+      var existingMap = {};
+      if (tickerMapSheet) {
+        var mapData = tickerMapSheet.getDataRange().getValues();
+        for (var m = 1; m < mapData.length; m++) {
+          if (mapData[m][0]) existingMap[mapData[m][0]] = true;
+        }
+      }
+
       holdings.forEach(function(holding) {
         var existingRow = -1;
         for (var i = 1; i < data.length; i++) {
@@ -126,6 +136,16 @@ var SheetsService = (function() {
         } else {
           sheet.appendRow(row);
         }
+
+        // 한국 ETF 종목코드를 ticker_map에 자동 저장
+        if (holding.market === 'KR' && holding.ticker && holding.ticker !== 'UNKNOWN'
+            && !holding.ticker.toString().startsWith('CASH') && !existingMap[holding.name]) {
+          if (tickerMapSheet) {
+            tickerMapSheet.appendRow([holding.name, holding.ticker]);
+            existingMap[holding.name] = true;
+          }
+        }
+
         updated++;
       });
 

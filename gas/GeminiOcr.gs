@@ -62,20 +62,43 @@ var GeminiOcr = (function() {
     '{"broker": "키움증권" 또는 "삼성증권", "holdings": [종목 배열]}'
   ].join('\n');
 
-  /** holdings 시트에서 종목명→종목코드 매핑 조회 */
+  /** ticker_map 시트에서 종목명→종목코드 매핑 조회 */
   function getNameToTickerMap_() {
     var map = {};
     try {
-      var holdings = SheetsService.getHoldings();
-      holdings.forEach(function(h) {
-        if (h.name && h.ticker && h.ticker !== 'UNKNOWN') {
-          map[h.name] = h.ticker;
+      var ss = SpreadsheetApp.openById(
+        PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID')
+      );
+      var sheet = ss.getSheetByName('ticker_map');
+      if (!sheet) return map;
+      var data = sheet.getDataRange().getValues();
+      for (var i = 1; i < data.length; i++) {
+        if (data[i][0] && data[i][1]) {
+          map[data[i][0]] = data[i][1].toString();
         }
-      });
+      }
     } catch (e) {
       Logger.log('매핑 조회 실패 (무시): ' + e.message);
     }
     return map;
+  }
+
+  /** ticker_map 시트에 새 매핑 저장 */
+  function saveToTickerMap_(name, ticker) {
+    try {
+      var ss = SpreadsheetApp.openById(
+        PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID')
+      );
+      var sheet = ss.getSheetByName('ticker_map');
+      if (!sheet) return;
+      var data = sheet.getDataRange().getValues();
+      for (var i = 1; i < data.length; i++) {
+        if (data[i][0] === name) return; // 이미 있으면 스킵
+      }
+      sheet.appendRow([name, ticker]);
+    } catch (e) {
+      Logger.log('매핑 저장 실패 (무시): ' + e.message);
+    }
   }
 
   return {
