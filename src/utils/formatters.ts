@@ -7,6 +7,7 @@ export function formatCurrency(amount: number, currency: Currency): string {
   return new Intl.NumberFormat(LOCALE, {
     style: 'currency',
     currency,
+    currencyDisplay: 'narrowSymbol',
     minimumFractionDigits: currency === 'KRW' ? 0 : 2,
     maximumFractionDigits: currency === 'KRW' ? 0 : 2,
   }).format(amount);
