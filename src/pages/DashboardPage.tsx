@@ -123,12 +123,13 @@ export default function DashboardPage() {
   return (
     <div className="px-4 py-5 space-y-5">
       {/* 헤더: 총 자산 + 환율 토글 */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-600/20 via-dark-surface to-dark-surface border border-blue-500/10 p-4">
-        <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full -translate-y-1/2 translate-x-1/2" />
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-warm/10 via-dark-surface to-dark-surface border border-warm/10 p-4 shadow-lg shadow-black/20">
+        <div className="absolute top-0 right-0 w-32 h-32 bg-warm/5 rounded-full -translate-y-1/2 translate-x-1/2" />
+        <div className="absolute bottom-0 left-0 w-24 h-24 bg-accent/5 rounded-full translate-y-1/2 -translate-x-1/2" />
         <div className="relative flex items-center justify-between">
           <div>
-            <p className="text-sm text-dark-text-muted font-semibold tracking-wide uppercase mb-1">총 자산</p>
-            <p className="text-3xl font-extrabold text-dark-text tracking-tight">
+            <p className="text-section-heading mb-1">총 자산</p>
+            <p className="text-money-lg text-warm">
               {formatCurrency(totalAsset, currentCurrency)}
             </p>
             {rate > 0 && (

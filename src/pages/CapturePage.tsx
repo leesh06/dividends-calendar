@@ -217,7 +217,10 @@ export default function CapturePage() {
 
   return (
     <div className="px-4 py-5 space-y-4">
-      <h1 className="text-lg font-bold text-dark-text">캡처 업로드</h1>
+      <div>
+        <h1 className="text-page-title text-dark-text">캡처 업로드</h1>
+        <p className="text-sm text-dark-text-muted mt-0.5">증권사 앱 스크린샷을 AI가 분석합니다</p>
+      </div>
 
       <ImageUploader
         onImageSelect={handleImageSelect}

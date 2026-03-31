@@ -23,7 +23,7 @@ export default function CalendarHeader({
         </svg>
       </button>
 
-      <h2 className="text-xl font-bold text-dark-text tracking-wide">
+      <h2 className="text-page-title text-dark-text">
         {year}.{String(month).padStart(2, '0')}
       </h2>
 

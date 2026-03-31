@@ -1,20 +1,29 @@
 @import "tailwindcss";
 
 @theme {
-  --color-dark-bg: #0f172a;
-  --color-dark-surface: #1e293b;
-  --color-dark-card: #1e293b;
-  --color-dark-border: #334155;
-  --color-dark-text: #f1f5f9;
-  --color-dark-text-secondary: #94a3b8;
-  --color-dark-text-muted: #64748b;
-  --color-us-stock: #3B82F6;
+  /* 따뜻한 다크 팔레트 — 차가운 Slate 대신 깊은 네이비 */
+  --color-dark-bg: #0b0e1a;
+  --color-dark-surface: #141825;
+  --color-dark-card: #181d2e;
+  --color-dark-border: #252d42;
+  --color-dark-text: #eef0f6;
+  --color-dark-text-secondary: #8e9ab3;
+  --color-dark-text-muted: #5a6580;
+  /* 시장 구분 */
+  --color-us-stock: #4F8EF7;
   --color-kr-stock: #10B981;
-  --color-accent: #3B82F6;
-  --color-accent-light: #60a5fa;
+  /* 메인 액센트 — 약간 밝은 블루 */
+  --color-accent: #4F8EF7;
+  --color-accent-light: #6DB3FF;
+  /* 골드 액센트 — 금액/자산 강조 */
+  --color-warm: #E8A855;
+  --color-warm-light: #F0C078;
+  /* 상태 색상 */
   --color-danger: #ef4444;
   --color-warning: #f59e0b;
   --color-success: #10B981;
+  /* 높은 표면 */
+  --color-surface-elevated: #1c2236;
 }
 
 :root {
@@ -99,6 +108,36 @@ body {
 
 .toggle-switch:not(.active) {
   background-color: var(--color-dark-border);
+}
+
+/* 타이포그래피 계층 */
+.text-page-title {
+  font-size: 1.375rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.text-section-heading {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-dark-text-secondary);
+}
+
+.text-money-lg {
+  font-size: 1.875rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+
+.text-money-md {
+  font-size: 1.125rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
 }
 
 /* 바텀시트 슬라이드 업 애니메이션 */

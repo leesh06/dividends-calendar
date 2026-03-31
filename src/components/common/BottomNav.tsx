@@ -37,20 +37,25 @@ export default function BottomNav() {
   const navigate = useNavigate();
 
   return (
-    <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] h-16 bg-dark-surface/95 backdrop-blur-md border-t border-dark-border flex items-center justify-around z-50">
+    <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] h-16 bg-dark-bg/98 backdrop-blur-xl border-t border-dark-border/80 shadow-[0_-4px_24px_rgba(0,0,0,0.3)] flex items-center justify-around z-50">
       {NAV_TABS.map((tab) => {
         const isActive = location.pathname === tab.path;
         return (
           <button
             key={tab.path}
             onClick={() => navigate(tab.path)}
-            className={`flex flex-col items-center justify-center w-full h-full gap-0.5 transition-colors ${
+            className={`relative flex flex-col items-center justify-center w-full h-full gap-1 transition-colors ${
               isActive
                 ? 'text-accent'
                 : 'text-dark-text-muted hover:text-dark-text-secondary'
             }`}
           >
-            {ICONS[tab.icon](isActive)}
+            {isActive && (
+              <div className="absolute top-1.5 w-4 h-0.5 rounded-full bg-accent" />
+            )}
+            <div className={`transition-transform duration-150 ${isActive ? 'scale-105' : ''}`}>
+              {ICONS[tab.icon](isActive)}
+            </div>
             <span className={`text-[10px] font-medium ${isActive ? 'text-accent' : ''}`}>
               {tab.label}
             </span>

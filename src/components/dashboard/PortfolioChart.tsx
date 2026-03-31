@@ -36,7 +36,7 @@ export default function PortfolioChart({ data, currency }: PortfolioChartProps) 
 
   return (
     <Card>
-      <h3 className="text-sm font-medium text-dark-text-secondary mb-3">포트폴리오</h3>
+      <h3 className="text-section-heading mb-3">포트폴리오</h3>
       <div className="flex items-center gap-4">
         {/* 도넛 차트 */}
         <div className="flex-shrink-0">

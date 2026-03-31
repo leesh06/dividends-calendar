@@ -32,7 +32,7 @@ export default function DayCell({
       className={`
         relative flex flex-col items-center pt-1.5 pb-1 min-h-[56px] rounded-xl transition-colors
         ${isCurrentMonth ? 'hover:bg-dark-surface' : 'opacity-20 pointer-events-none'}
-        ${isSelected ? 'bg-amber-500/20' : ''}
+        ${isSelected ? 'bg-amber-500/15 ring-1 ring-amber-500/30' : ''}
       `}
     >
       {/* 날짜 숫자 */}

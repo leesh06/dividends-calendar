@@ -16,6 +16,8 @@ const SORT_OPTIONS: { key: SortMode; label: string }[] = [
   { key: 'yield', label: '배당률순' },
 ];
 
+const COMPACT_LIMIT = 5;
+
 const MARKET_LABELS: Record<string, { label: string; gradient: string }> = {
   US: { label: 'US', gradient: 'from-blue-500 to-blue-600' },
   KR: { label: 'KR', gradient: 'from-emerald-500 to-emerald-600' },
@@ -30,6 +32,7 @@ function formatPrice(price: number, currency: Currency): string {
 export default function HoldingsList({ holdings, dividends }: HoldingsListProps) {
   const { format, convert } = useCurrency();
   const [sortMode, setSortMode] = useState<SortMode>('value');
+  const [isExpanded, setIsExpanded] = useState(false);
 
   // 종목별 수익률 미리 계산 (정렬용)
   const yieldMap = useMemo(() => {
@@ -62,7 +65,7 @@ export default function HoldingsList({ holdings, dividends }: HoldingsListProps)
     <div>
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <h3 className="text-sm font-semibold text-dark-text-secondary tracking-wide uppercase">
+          <h3 className="text-section-heading">
             보유 종목
           </h3>
           <span className="text-xs text-dark-text-muted">
@@ -89,7 +92,8 @@ export default function HoldingsList({ holdings, dividends }: HoldingsListProps)
       </div>
 
       <div className="space-y-2.5">
-        {sortedHoldings.map((holding, index) => {
+        {/* 상위 종목: 풀 카드 스타일 */}
+        {sortedHoldings.slice(0, isExpanded ? sortedHoldings.length : COMPACT_LIMIT).map((holding, index) => {
           const evalAmount = holding.currentPrice * holding.quantity;
           const yieldRate = yieldMap.get(holding.holdingId) || 0;
           const market = MARKET_LABELS[holding.market] || {
@@ -101,7 +105,7 @@ export default function HoldingsList({ holdings, dividends }: HoldingsListProps)
           return (
             <div
               key={holding.holdingId}
-              className="group relative bg-dark-surface rounded-2xl border border-dark-border/60 overflow-hidden hover:border-dark-border transition-all duration-200"
+              className="group relative bg-dark-surface rounded-2xl border border-dark-border/60 overflow-hidden hover:border-dark-border hover:shadow-md hover:shadow-black/10 transition-all duration-200"
               style={{ animationDelay: `${index * 30}ms` }}
             >
               {/* 좌측 마켓 인디케이터 바 */}
@@ -168,6 +172,52 @@ export default function HoldingsList({ holdings, dividends }: HoldingsListProps)
             </div>
           );
         })}
+
+        {/* 나머지 종목: 컴팩트 한줄 스타일 (접힌 상태에서만) */}
+        {!isExpanded && sortedHoldings.length > COMPACT_LIMIT && (
+          <div className="rounded-2xl border border-dark-border/40 overflow-hidden divide-y divide-dark-border/30">
+            {sortedHoldings.slice(COMPACT_LIMIT).map((holding) => {
+              const evalAmount = holding.currentPrice * holding.quantity;
+              const market = MARKET_LABELS[holding.market] || {
+                label: '??',
+                gradient: 'from-gray-500 to-gray-600',
+              };
+
+              return (
+                <div
+                  key={holding.holdingId}
+                  className="flex items-center justify-between px-3 py-2 bg-dark-surface/60 hover:bg-dark-surface transition-colors"
+                >
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <div
+                      className={`flex-shrink-0 w-6 h-6 rounded-lg bg-gradient-to-br ${market.gradient} flex items-center justify-center`}
+                    >
+                      <span className="text-[8px] font-bold text-white">
+                        {market.label}
+                      </span>
+                    </div>
+                    <p className="text-xs font-medium text-dark-text truncate">
+                      {holding.name}
+                    </p>
+                  </div>
+                  <p className="text-xs font-semibold text-dark-text-secondary tabular-nums ml-2 flex-shrink-0">
+                    {format(evalAmount, holding.currency)}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* 더보기/접기 버튼 */}
+        {sortedHoldings.length > COMPACT_LIMIT && (
+          <button
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="w-full py-2.5 mt-1 rounded-xl border border-dashed border-dark-border/60 text-sm font-medium text-dark-text-muted hover:text-dark-text-secondary hover:border-dark-border transition-colors"
+          >
+            {isExpanded ? '접기' : `나머지 ${sortedHoldings.length - COMPACT_LIMIT}개 종목 펼치기`}
+          </button>
+        )}
       </div>
     </div>
   );

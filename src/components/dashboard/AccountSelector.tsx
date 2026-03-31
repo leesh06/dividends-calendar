@@ -65,7 +65,7 @@ export default function AccountSelector({ allHoldings, onAccountDeleted }: Accou
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between mb-1">
-        <h3 className="text-sm font-semibold text-dark-text-secondary tracking-wide uppercase">계좌 선택</h3>
+        <h3 className="text-section-heading">계좌 선택</h3>
         {accountsWithHoldings.length > 1 && (
           <button
             onClick={selectAll}

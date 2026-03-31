@@ -94,7 +94,7 @@ export default function SettingsPage() {
 
   return (
     <div className="px-4 py-5 space-y-4">
-      <h1 className="text-lg font-bold text-dark-text">설정</h1>
+      <h1 className="text-page-title text-dark-text">설정</h1>
 
       {/* 계좌 관리 */}
       <div>

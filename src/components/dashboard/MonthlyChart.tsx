@@ -27,8 +27,8 @@ export interface MonthlyDividendData {
 
 const BAR_RADIUS = 4;
 const CHART_HEIGHT = 180;
-const ACTUAL_COLOR = '#3B82F6';
-const ESTIMATED_COLOR = 'rgba(59, 130, 246, 0.35)';
+const ACTUAL_COLOR = '#4F8EF7';
+const ESTIMATED_COLOR = 'rgba(79, 142, 247, 0.35)';
 
 /** 커스텀 툴팁 */
 function CustomTooltip({ active, payload, label, currencySymbol, currentMonth }: {
@@ -87,7 +87,7 @@ export default function MonthlyChart({ data, currentMonth, currency }: MonthlyCh
 
   return (
     <Card>
-      <h3 className="text-sm font-medium text-dark-text-secondary mb-3">월별 배당금</h3>
+      <h3 className="text-section-heading mb-3">월별 배당금</h3>
       <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
         <BarChart data={chartData} barCategoryGap="20%">
           <XAxis
