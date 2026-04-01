@@ -101,11 +101,19 @@ function normalizeDividends(dividends: Dividend[]): Dividend[] {
     });
 }
 
+/** Account 데이터 빈 행 필터 */
+function normalizeAccounts(accounts: Account[]): Account[] {
+  return accounts.filter(
+    (a) => a.accountId && a.accountName && String(a.accountName).trim() !== '',
+  );
+}
+
 /** 전체 데이터 일괄 조회 */
 export async function getAll(): Promise<AllData> {
   const data = await gasGet<AllData>('getAll');
   return {
     ...data,
+    accounts: normalizeAccounts(data.accounts),
     holdings: normalizeHoldings(data.holdings),
     dividends: normalizeDividends(data.dividends),
   };
@@ -196,6 +204,11 @@ export function updateQuotes(): Promise<{ updated: number }> {
 /** 배당 데이터 수집 트리거 */
 export function fetchDividends(): Promise<{ success: boolean }> {
   return gasPost<{ success: boolean }>({ action: 'fetchDividends' });
+}
+
+/** 전체 초기화 (계좌 + 보유종목 삭제, 빈 행 정리) */
+export function resetAll(): Promise<Record<string, number>> {
+  return gasPost<Record<string, number>>({ action: 'resetAll' });
 }
 
 /** 캡처 이미지 분석 (Gemini AI) */

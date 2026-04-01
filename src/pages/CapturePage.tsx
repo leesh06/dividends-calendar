@@ -446,7 +446,9 @@ export default function CapturePage() {
                 className="w-full bg-dark-bg text-dark-text text-sm rounded-lg px-3 py-2 border border-dark-border focus:border-accent outline-none"
               >
                 <option value="">계좌를 선택하세요</option>
-                {accounts.map((acc) => (
+                {accounts
+                  .filter((acc) => acc.accountId && acc.accountName)
+                  .map((acc) => (
                   <option key={acc.accountId} value={acc.accountId}>
                     {acc.accountName} ({acc.broker})
                   </option>

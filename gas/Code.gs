@@ -74,6 +74,9 @@ function doPost(e) {
       case 'deleteHolding':
         data = SheetsService.deleteHolding(body.accountId, body.ticker);
         break;
+      case 'resetAll':
+        data = SheetsService.resetAll();
+        break;
       case 'fetchDividends':
         DividendFetcher.fetchAll();
         data = { success: true };

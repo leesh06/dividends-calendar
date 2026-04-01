@@ -248,6 +248,47 @@ var SheetsService = (function() {
       return { deleted: deleted };
     },
 
+    /** 전체 초기화 (accounts + holdings 데이터 삭제, 빈 행 정리, 헤더 유지) */
+    resetAll: function() {
+      var ss = getSpreadsheet_();
+      var sheetsToClean = [SHEET_NAMES.ACCOUNTS, SHEET_NAMES.HOLDINGS];
+      var DATA_START_ROW = 2;
+      var result = {};
+
+      sheetsToClean.forEach(function(name) {
+        var sheet = ss.getSheetByName(name);
+        if (!sheet) return;
+        var lastRow = sheet.getLastRow();
+        if (lastRow >= DATA_START_ROW) {
+          sheet.deleteRows(DATA_START_ROW, lastRow - DATA_START_ROW + 1);
+        }
+        result[name] = lastRow - DATA_START_ROW + 1;
+      });
+
+      // dividends 시트도 빈 행 정리 (데이터가 있는 행 중 ticker가 비어있는 행 제거)
+      var divSheet = ss.getSheetByName(SHEET_NAMES.DIVIDENDS);
+      if (divSheet) {
+        var dData = divSheet.getDataRange().getValues();
+        var dHeaders = dData[0];
+        var dTickerCol = dHeaders.indexOf('ticker');
+        var cleaned = 0;
+        for (var i = dData.length - 1; i >= 1; i--) {
+          var row = dData[i];
+          var isEmpty = row.every(function(cell) {
+            return cell === '' || cell === null || cell === undefined;
+          });
+          var noTicker = !row[dTickerCol] || row[dTickerCol].toString().trim() === '';
+          if (isEmpty || noTicker) {
+            divSheet.deleteRow(i + 1);
+            cleaned++;
+          }
+        }
+        result.dividendsCleaned = cleaned;
+      }
+
+      return result;
+    },
+
     /** 설정 업데이트 */
     updateSetting: function(key, value) {
       var sheet = getSpreadsheet_().getSheetByName(SHEET_NAMES.SETTINGS);

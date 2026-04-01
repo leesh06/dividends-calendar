@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { useAccountStore } from '../stores/accountStore';
 import { useCurrencyStore } from '../stores/currencyStore';
 import { useExchangeRate } from '../hooks/useExchangeRate';
-import { addAccount, fetchDividends, updateQuotes, deleteAccount as deleteAccountApi } from '../services/sheetsApi';
+import { addAccount, fetchDividends, updateQuotes, deleteAccount as deleteAccountApi, resetAll } from '../services/sheetsApi';
 import Card from '../components/common/Card';
 import Toggle from '../components/common/Toggle';
 import type { Broker, Currency } from '../types';
@@ -11,7 +11,7 @@ const BROKER_OPTIONS: Broker[] = ['키움증권', '삼성증권'];
 const CURRENCY_OPTIONS: Currency[] = ['USD', 'KRW'];
 
 export default function SettingsPage() {
-  const { accounts, addAccount: addToStore, removeAccount } = useAccountStore();
+  const { accounts, addAccount: addToStore, removeAccount, setAccounts } = useAccountStore();
   const { currentCurrency, toggleCurrency } = useCurrencyStore();
   const { rate, lastUpdated, refresh } = useExchangeRate();
 
@@ -27,6 +27,9 @@ export default function SettingsPage() {
   const [dividendMsg, setDividendMsg] = useState('');
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmReset, setConfirmReset] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
+  const [resetMsg, setResetMsg] = useState('');
 
   const handleAddAccount = useCallback(async () => {
     if (!newName.trim()) return;
@@ -68,6 +71,21 @@ export default function SettingsPage() {
       setConfirmDeleteId(null);
     }
   }, [removeAccount]);
+
+  const handleResetAll = useCallback(async () => {
+    setIsResetting(true);
+    setResetMsg('');
+    try {
+      await resetAll();
+      setAccounts([]);
+      setResetMsg('초기화 완료! 캡처 탭에서 새로 업로드하세요.');
+    } catch {
+      setResetMsg('초기화 실패. 다시 시도해주세요.');
+    } finally {
+      setIsResetting(false);
+      setConfirmReset(false);
+    }
+  }, [setAccounts]);
 
   const handleSync = useCallback(async () => {
     setIsSyncing(true);
@@ -192,6 +210,47 @@ export default function SettingsPage() {
           </div>
         )}
       </div>
+
+      {/* 전체 초기화 */}
+      <Card className="!p-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-dark-text">전체 초기화</p>
+            <p className="text-xs text-dark-text-muted">
+              모든 계좌·보유종목 삭제 + 시트 빈 행 정리
+            </p>
+            {resetMsg && (
+              <p className={`text-xs mt-1 ${resetMsg.includes('완료') ? 'text-green-400' : 'text-red-400'}`}>
+                {resetMsg}
+              </p>
+            )}
+          </div>
+          {confirmReset ? (
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={handleResetAll}
+                disabled={isResetting}
+                className="text-[11px] px-2.5 py-1 rounded bg-red-500/20 text-red-400 font-medium disabled:opacity-50"
+              >
+                {isResetting ? '처리중...' : '확인'}
+              </button>
+              <button
+                onClick={() => setConfirmReset(false)}
+                className="text-[11px] px-2.5 py-1 rounded bg-dark-border/50 text-dark-text-muted font-medium"
+              >
+                취소
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setConfirmReset(true)}
+              className="px-3 py-1.5 rounded-lg bg-red-500/10 text-xs text-red-400 font-medium hover:bg-red-500/20 transition-colors shrink-0"
+            >
+              초기화
+            </button>
+          )}
+        </div>
+      </Card>
 
       {/* 통화 설정 */}
       <Card>
