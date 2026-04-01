@@ -29,28 +29,48 @@ export function estimateDividend(
   return 0;
 }
 
-/** 연간 배당 수익률 계산 (세후, 15.4% 원천징수 반영) */
+/** 연간 배당 수익률 계산 (세후, 15.4% 원천징수 반영)
+ * TTM 방식: 올해 각 월에 확정 배당이 있으면 사용, 없으면 작년 동월로 보완
+ */
 export function calcAnnualYield(
   holding: Holding,
   dividends: Dividend[],
 ): number {
-  const tickerDivs = dividends.filter(
-    (d) => d.ticker === holding.ticker && d.status === 'actual',
-  );
+  if (holding.currentPrice === 0) return 0;
 
-  if (tickerDivs.length === 0 || holding.currentPrice === 0) return 0;
+  const tickerDivs = dividends.filter((d) => d.ticker === holding.ticker);
+  if (tickerDivs.length === 0) return 0;
 
-  // 최근 12개월 배당 합산
   const now = new Date();
-  const oneYearAgo = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+  const thisYear = now.getFullYear();
+  const lastYear = thisYear - 1;
 
-  const recentDivs = tickerDivs.filter(
-    (d) => new Date(d.exDate) >= oneYearAgo,
-  );
+  let annualDividend = 0;
 
-  const annualDividend = recentDivs.reduce((sum, d) => sum + d.amount, 0);
+  for (let m = 1; m <= MONTHS_IN_YEAR; m++) {
+    // 올해 해당 월의 확정 배당
+    const thisYearDivs = tickerDivs.filter((d) => {
+      const date = new Date(d.exDate);
+      return date.getFullYear() === thisYear
+        && date.getMonth() + 1 === m
+        && d.status === 'actual';
+    });
+
+    if (thisYearDivs.length > 0) {
+      annualDividend += thisYearDivs.reduce((sum, d) => sum + d.amount, 0);
+    } else {
+      // 없으면 작년 동월 배당으로 대체
+      const lastYearDivs = tickerDivs.filter((d) => {
+        const date = new Date(d.exDate);
+        return date.getFullYear() === lastYear
+          && date.getMonth() + 1 === m
+          && d.status === 'actual';
+      });
+      annualDividend += lastYearDivs.reduce((sum, d) => sum + d.amount, 0);
+    }
+  }
+
   const PERCENT = 100;
-
   return (annualDividend * AFTER_TAX_RATE / holding.currentPrice) * PERCENT;
 }
 
