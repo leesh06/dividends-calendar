@@ -94,10 +94,11 @@ function doPost(e) {
 var EXCHANGE_RATE_URL = 'https://api.exchangerate-api.com/v4/latest/USD';
 var YAHOO_CHART_BASE = 'https://query1.finance.yahoo.com/v8/finance/chart/';
 
-/** 한국 종목코드 6자리 패딩 (Sheets가 숫자로 저장해서 앞자리 0이 빠지는 문제 대응) */
+/** 한국 종목코드 6자리 패딩 (Sheets가 숫자로 저장해서 앞자리 0이 빠지는 문제 대응)
+ *  KRX 2024 개편으로 영숫자 혼합 코드(예: 0043Y0)도 존재 → 영숫자 모두 패딩 대상 */
 function padKrTicker_(ticker, market) {
-  var t = ticker.toString().trim();
-  if (market === 'KR' && /^\d+$/.test(t)) {
+  var t = ticker.toString().trim().toUpperCase();
+  if (market === 'KR' && /^[0-9A-Z]+$/.test(t) && t.indexOf('CASH') !== 0) {
     while (t.length < 6) t = '0' + t;
   }
   return t;

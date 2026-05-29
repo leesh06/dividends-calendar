@@ -296,11 +296,14 @@ export default function CapturePage() {
                     <span className="text-xs text-yellow-400 whitespace-nowrap">종목코드</span>
                     <input
                       type="text"
-                      inputMode="numeric"
-                      placeholder="6자리 숫자"
+                      placeholder="6자리 (숫자·영문 혼합)"
                       maxLength={6}
+                      autoCapitalize="characters"
+                      autoCorrect="off"
+                      spellCheck={false}
                       onChange={(e) => {
-                        const val = e.target.value.replace(/[^0-9]/g, '');
+                        // 국내 종목코드는 영숫자 혼합 가능 (KRX 2024 개편, I·O·U 제외)
+                        const val = e.target.value.replace(/[^0-9A-Za-z]/g, '').toUpperCase();
                         e.target.value = val;
                         if (val.length === 6) {
                           setResult((prev) => {
@@ -312,7 +315,7 @@ export default function CapturePage() {
                           });
                         }
                       }}
-                      className="flex-1 bg-dark-bg text-dark-text text-xs rounded-lg px-2 py-1.5 border border-yellow-500/50 focus:border-accent outline-none tabular-nums"
+                      className="flex-1 bg-dark-bg text-dark-text text-xs rounded-lg px-2 py-1.5 border border-yellow-500/50 focus:border-accent outline-none tabular-nums uppercase"
                     />
                   </div>
                 )}
