@@ -69,6 +69,7 @@ export default function OcrResultEditor({ holdings: initial, broker, onSave }: O
               <label className="text-[10px] text-dark-text-muted">수량</label>
               <input
                 type="number"
+                inputMode="decimal"
                 value={item.quantity}
                 onChange={(e) => updateItem(idx, 'quantity', e.target.value)}
                 className="w-full bg-dark-bg rounded px-2 py-1 text-xs text-dark-text border border-dark-border focus:border-accent outline-none"
