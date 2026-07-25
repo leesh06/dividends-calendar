@@ -104,25 +104,69 @@ function padKrTicker_(ticker, market) {
   return t;
 }
 
-/** 환율 조회 (Yahoo Finance - 실시간) */
+/** 환율 유효성 범위 (USD/KRW가 이 범위를 벗어나면 비정상으로 간주) */
+var RATE_MIN = 800;
+var RATE_MAX = 3000;
+/** GOOGLEFINANCE 수식을 넣을 임시 셀 위치 (settings 시트 사용) */
+var GFIN_CELL = 'Z1';
+
+/** 현재 시각 문자열 (KST) */
+function nowKst_() {
+  return Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyy-MM-dd HH:mm');
+}
+
+/** 환율 값이 정상 범위인지 확인 */
+function isValidRate_(rate) {
+  return typeof rate === 'number' && rate >= RATE_MIN && rate <= RATE_MAX;
+}
+
+/**
+ * 환율 조회 (GOOGLEFINANCE 메인 + Yahoo 폴백)
+ * 구글파이낸스 값이 비정상이면 자동으로 Yahoo로 전환
+ */
 function getExchangeRate_() {
+  var rate = getGoogleFinanceRate_();
+  if (!isValidRate_(rate)) {
+    rate = getYahooRate_();
+  }
+  if (!isValidRate_(rate)) {
+    throw new Error('환율 조회 실패: 유효한 값 없음');
+  }
+  return { rate: rate, lastUpdated: nowKst_() };
+}
+
+/**
+ * GOOGLEFINANCE로 USD/KRW 조회
+ * settings 시트의 임시 셀에 수식을 넣고 값을 읽은 뒤 정리
+ * 실패 시 null 반환 (폴백 유도)
+ */
+function getGoogleFinanceRate_() {
+  try {
+    var id = PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID');
+    var sheet = SpreadsheetApp.openById(id).getSheetByName('settings');
+    if (!sheet) return null;
+    var cell = sheet.getRange(GFIN_CELL);
+    cell.setFormula('=GOOGLEFINANCE("CURRENCY:USDKRW")');
+    SpreadsheetApp.flush();
+    var rate = cell.getValue();
+    cell.clearContent();
+    return typeof rate === 'number' ? rate : null;
+  } catch (err) {
+    return null;
+  }
+}
+
+/** Yahoo Finance로 USD/KRW 조회 (폴백). 실패 시 null */
+function getYahooRate_() {
   var url = YAHOO_CHART_BASE + 'USDKRW=X?range=1d&interval=1d';
   var res = UrlFetchApp.fetch(url, {
     muteHttpExceptions: true,
     headers: { 'User-Agent': 'Mozilla/5.0' }
   });
-  if (res.getResponseCode() !== 200) {
-    throw new Error('환율 조회 실패: ' + res.getResponseCode());
-  }
+  if (res.getResponseCode() !== 200) return null;
   var json = JSON.parse(res.getContentText());
-  if (!json.chart || !json.chart.result) {
-    throw new Error('KRW 환율 없음');
-  }
-  var rate = json.chart.result[0].meta.regularMarketPrice;
-  return {
-    rate: rate,
-    lastUpdated: Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyy-MM-dd HH:mm')
-  };
+  if (!json.chart || !json.chart.result) return null;
+  return json.chart.result[0].meta.regularMarketPrice;
 }
 
 /** Yahoo Finance로 단일 종목 현재가 조회 */
