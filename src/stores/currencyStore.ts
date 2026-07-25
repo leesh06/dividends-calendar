@@ -21,7 +21,7 @@ interface CurrencyState {
 }
 
 export const useCurrencyStore = create<CurrencyState>((set) => ({
-  currentCurrency: 'KRW',
+  currentCurrency: 'USD',
   rate: 0,
   lastUpdated: null,
   isLoading: false,
