@@ -1,5 +1,5 @@
 /**
- * OpenAI GPT-4o-mini를 활용한 증권사 캡처 이미지 분석
+ * OpenAI GPT-5.6 Luna를 활용한 증권사 캡처 이미지 분석
  * - 이미지에서 종목명, 티커, 수량, 매입금액, 평가금액 추출
  * - 종목별로 시장(US/KR) 자동 판별 (증권사 무관, 한 캡처에 미국/한국 혼재 OK)
  */
@@ -134,7 +134,7 @@ var GeminiOcr = (function() {
       }
 
       var payload = {
-        model: 'gpt-5.4-mini',
+        model: 'gpt-5.6-luna',
         messages: [
           {
             role: 'system',

@@ -16,7 +16,7 @@ npm run preview   # 빌드 결과 프리뷰
 ## 기술 스택
 - **Frontend**: React 19 + TypeScript + Vite 8 + Tailwind CSS 4 + Zustand + Recharts
 - **Backend/DB**: Google Sheets + Google Apps Script (웹앱)
-- **캡처 분석**: OpenAI GPT-5.4-mini (GAS에서 호출, `max_completion_tokens` 사용)
+- **캡처 분석**: OpenAI GPT-5.6 Luna (`gpt-5.6-luna`, GAS에서 호출, `max_completion_tokens` 사용)
 - **배당/현재가/환율**: Yahoo Finance (GAS에서 호출)
 - **배포**: Vercel (GitHub main 브랜치 자동 배포)
 
@@ -27,7 +27,7 @@ npm run preview   # 빌드 결과 프리뷰
 Google Sheets (DB) ←→ GAS (API 서버) ←→ React 앱 (Frontend)
                           ↑
                    Yahoo Finance (배당/현재가/환율)
-                   OpenAI GPT-5.4-mini (캡처 OCR)
+                   OpenAI GPT-5.6 Luna (캡처 OCR)
 ```
 
 ### Frontend 구조
@@ -45,7 +45,7 @@ Google Sheets (DB) ←→ GAS (API 서버) ←→ React 앱 (Frontend)
 - **Code.gs**: 웹앱 엔드포인트 (doGet/doPost), 환율/현재가 조회
 - **SheetsService.gs**: Sheets CRUD + deleteAccount/deleteHolding
 - **DividendFetcher.gs**: Yahoo Finance 배당 수집 (US/KR 통합, KR은 .KS 접미사)
-- **GeminiOcr.gs**: OpenAI GPT-5.4-mini OCR (증권사 캡처 → JSON 파싱)
+- **GeminiOcr.gs**: OpenAI GPT-5.6 Luna OCR (증권사 캡처 → JSON 파싱)
 - **Scheduler.gs**: 트리거 관리 (매일 09:00 배당 수집)
 
 ## 환경변수
