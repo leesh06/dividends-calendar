@@ -152,8 +152,7 @@ var GeminiOcr = (function() {
           }
         ],
         response_format: { type: 'json_object' },
-        max_completion_tokens: 8192,
-        temperature: 0.1
+        max_completion_tokens: 8192
       };
 
       var res = UrlFetchApp.fetch(OPENAI_URL, {
