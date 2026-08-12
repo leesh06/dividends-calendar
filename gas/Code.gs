@@ -77,6 +77,9 @@ function doPost(e) {
       case 'resetAll':
         data = SheetsService.resetAll();
         break;
+      case 'dedupeDividends':
+        data = SheetsService.dedupeDividends();
+        break;
       case 'fetchDividends':
         DividendFetcher.fetchAll();
         data = { success: true };
@@ -102,6 +105,23 @@ function padKrTicker_(ticker, market) {
     while (t.length < 6) t = '0' + t;
   }
   return t;
+}
+
+/** 시트 시간대 설정이 비어있을 때 사용할 기본값
+ *  (이 시트의 날짜 셀은 UTC 자정으로 저장돼 있음 → GMT 기준이 원본 날짜와 일치) */
+var DEFAULT_SHEET_TZ = 'Etc/GMT';
+
+/**
+ * 배당 고유 키 (ticker + exDate)
+ * 시트에서 읽은 exDate는 Date 객체, 신규 수집분은 'yyyy-MM-dd' 문자열이라
+ * 반드시 문자열로 정규화 후 비교해야 함 (타입 불일치 → 중복 적재 버그의 원인)
+ */
+function dividendKey_(ticker, exDate, tz) {
+  var zone = (typeof tz === 'string' && tz) ? tz : DEFAULT_SHEET_TZ;
+  var dateStr = exDate instanceof Date
+    ? Utilities.formatDate(exDate, zone, 'yyyy-MM-dd')
+    : String(exDate).slice(0, 10);
+  return String(ticker).trim() + '_' + dateStr;
 }
 
 /** 환율 유효성 범위 (USD/KRW가 이 범위를 벗어나면 비정상으로 간주) */

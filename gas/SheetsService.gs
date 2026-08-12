@@ -10,6 +10,9 @@ var SheetsService = (function() {
     SETTINGS: 'settings'
   };
 
+  /** 앱에 내려보낼 배당 이력 범위 (TTM 수익률 + 작년 동월 추정에 2년이면 충분) */
+  var DIVIDEND_HISTORY_YEARS = 2;
+
   /** 스프레드시트 객체 가져오기 */
   function getSpreadsheet_() {
     var id = PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID');
@@ -69,12 +72,21 @@ var SheetsService = (function() {
       return all.filter(function(h) { return h.accountId === accountId; });
     },
 
-    /** 배당 데이터 조회 (month 필터 옵션, 형식: YYYY-MM) */
+    /** 배당 데이터 조회 (최근 2년치만 반환, month 필터 옵션: YYYY-MM) */
     getDividends: function(month) {
       var all = sheetToObjects_(SHEET_NAMES.DIVIDENDS);
-      if (!month) return all;
-      return all.filter(function(d) {
-        return d.exDate && d.exDate.toString().substring(0, 7) === month;
+      var cutoff = new Date();
+      cutoff.setFullYear(cutoff.getFullYear() - DIVIDEND_HISTORY_YEARS);
+
+      var recent = all.filter(function(d) {
+        if (!d.exDate) return false;
+        var dt = d.exDate instanceof Date ? d.exDate : new Date(d.exDate);
+        return dt >= cutoff;
+      });
+
+      if (!month) return recent;
+      return recent.filter(function(d) {
+        return d.exDate.toString().substring(0, 7) === month;
       });
     },
 
@@ -287,6 +299,50 @@ var SheetsService = (function() {
       }
 
       return result;
+    },
+
+    /**
+     * dividends 시트 중복 제거 (ticker+exDate 기준 첫 행만 유지)
+     * exDate 타입 불일치 버그로 쌓인 중복 행 일괄 정리용
+     */
+    dedupeDividends: function() {
+      var ss = getSpreadsheet_();
+      var sheet = ss.getSheetByName(SHEET_NAMES.DIVIDENDS);
+      if (!sheet) throw new Error('dividends 시트를 찾을 수 없습니다.');
+
+      var tz = ss.getSpreadsheetTimeZone();
+      var data = sheet.getDataRange().getValues();
+      if (data.length < 2) return { before: 0, after: 0, removed: 0 };
+
+      var headers = data[0];
+      var tickerCol = headers.indexOf('ticker');
+      var exDateCol = headers.indexOf('exDate');
+      var seen = {};
+      var kept = [];
+
+      for (var i = 1; i < data.length; i++) {
+        var ticker = String(data[i][tickerCol]).trim();
+        if (!ticker) continue;
+        var key = dividendKey_(ticker, data[i][exDateCol], tz);
+        if (seen[key]) continue;
+        seen[key] = true;
+        kept.push(data[i]);
+      }
+
+      if (kept.length > 0) {
+        sheet.getRange(2, 1, kept.length, headers.length).setValues(kept);
+      }
+      var lastRow = sheet.getLastRow();
+      var firstFree = kept.length + 2;
+      if (lastRow >= firstFree) {
+        sheet.deleteRows(firstFree, lastRow - firstFree + 1);
+      }
+
+      return {
+        before: data.length - 1,
+        after: kept.length,
+        removed: data.length - 1 - kept.length
+      };
     },
 
     /** 설정 업데이트 */

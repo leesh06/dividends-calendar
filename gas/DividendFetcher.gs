@@ -54,41 +54,64 @@ var DividendFetcher = (function() {
     return 'annual';
   }
 
-  /** dividends 시트에 upsert */
-  function upsertDividend_(dividend) {
+  /**
+   * dividends 시트를 1회만 읽어 기존 배당 키 인덱스 생성
+   * (기존에는 배당 1건마다 전체 시트를 재조회 → 시트가 클수록 기하급수로 느려짐)
+   */
+  function loadDividendContext_() {
     var ss = SpreadsheetApp.openById(
       PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID')
     );
     var sheet = ss.getSheetByName('dividends');
-    if (!sheet) return;
+    if (!sheet) throw new Error('dividends 시트를 찾을 수 없습니다.');
 
+    var tz = ss.getSpreadsheetTimeZone();
     var data = sheet.getDataRange().getValues();
     var headers = data[0];
     var tickerCol = headers.indexOf('ticker');
     var exDateCol = headers.indexOf('exDate');
+    var index = {};
 
     for (var i = 1; i < data.length; i++) {
-      if (data[i][tickerCol] === dividend.ticker &&
-          data[i][exDateCol] === dividend.exDate) {
-        var row = [
-          data[i][0], dividend.ticker, dividend.name,
-          dividend.exDate, dividend.payDate,
-          dividend.amount, dividend.currency,
-          dividend.frequency, dividend.status,
-          dividend.source, today_()
-        ];
-        sheet.getRange(i + 1, 1, 1, row.length).setValues([row]);
-        return;
-      }
+      var ticker = String(data[i][tickerCol]).trim();
+      if (!ticker) continue;
+      index[dividendKey_(ticker, data[i][exDateCol], tz)] = true;
     }
+    return { sheet: sheet, tz: tz, index: index };
+  }
 
-    sheet.appendRow([
-      generateId_(), dividend.ticker, dividend.name,
-      dividend.exDate, dividend.payDate,
-      dividend.amount, dividend.currency,
-      dividend.frequency, dividend.status,
-      dividend.source, today_()
-    ]);
+  /** 신규 배당 행 일괄 추가 (appendRow 반복 대신 setValues 1회) */
+  function appendDividendRows_(ctx, rows) {
+    if (rows.length === 0) return;
+    var startRow = ctx.sheet.getLastRow() + 1;
+    ctx.sheet.getRange(startRow, 1, rows.length, rows[0].length).setValues(rows);
+  }
+
+  /** Yahoo 응답에서 시트에 없는 배당만 골라 newRows에 적재 */
+  function collectTickerDividends_(ticker, name, market, events, ctx, newRows) {
+    var currency = market === 'US' ? 'USD' : 'KRW';
+    var roundDigits = market === 'US' ? 10000 : 1;
+    var divCount = Object.keys(events).length;
+
+    Object.keys(events).forEach(function(key) {
+      var div = events[key];
+      var exDate = tsToDate_(parseInt(key));
+      var divKey = dividendKey_(ticker, exDate, ctx.tz);
+      if (ctx.index[divKey]) return;
+      ctx.index[divKey] = true;
+
+      var amount = market === 'US'
+        ? Math.round(div.amount * roundDigits) / roundDigits
+        : Math.round(div.amount);
+
+      newRows.push([
+        generateId_(), ticker, name,
+        exDate, tsToDate_(div.date),
+        amount, currency,
+        guessFrequency_(divCount), 'actual',
+        'yahoo', today_()
+      ]);
+    });
   }
 
   /**
@@ -103,8 +126,8 @@ var DividendFetcher = (function() {
       return;
     }
 
-    var currency = market === 'US' ? 'USD' : 'KRW';
-    var roundDigits = market === 'US' ? 10000 : 1;
+    var ctx = loadDividendContext_();
+    var newRows = [];
     Logger.log(market + ' ' + tickerList.length + '종목 배당 수집 시작 (Yahoo Finance)');
 
     tickerList.forEach(function(ticker) {
@@ -118,32 +141,16 @@ var DividendFetcher = (function() {
       var chartData = result.chart.result[0];
       if (!chartData.events || !chartData.events.dividends) return;
 
-      var dividends = chartData.events.dividends;
-      var divCount = Object.keys(dividends).length;
-
-      Object.keys(dividends).forEach(function(key) {
-        var div = dividends[key];
-        var amount = market === 'US'
-          ? Math.round(div.amount * roundDigits) / roundDigits
-          : Math.round(div.amount);
-
-        upsertDividend_({
-          ticker: ticker,
-          name: tickers[ticker],
-          exDate: tsToDate_(parseInt(key)),
-          payDate: tsToDate_(div.date),
-          amount: amount,
-          currency: currency,
-          frequency: guessFrequency_(divCount),
-          status: 'actual',
-          source: 'yahoo'
-        });
-      });
+      collectTickerDividends_(
+        ticker, tickers[ticker], market,
+        chartData.events.dividends, ctx, newRows
+      );
 
       Utilities.sleep(500);
     });
 
-    Logger.log(market + ' 배당 수집 완료');
+    appendDividendRows_(ctx, newRows);
+    Logger.log(market + ' 배당 수집 완료: 신규 ' + newRows.length + '건');
   }
 
   return {

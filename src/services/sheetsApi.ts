@@ -16,6 +16,34 @@ export interface AllData {
   settings: Record<string, string>;
 }
 
+/** GAS 간헐 장애(드라이브 404 페이지 등) 대비 재시도 횟수 */
+const RETRY_COUNT = 2;
+/** 재시도 간격 기본값 (시도마다 배수로 증가) */
+const RETRY_BASE_DELAY_MS = 800;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * GAS 웹앱은 구글 쪽 간헐 장애로 404(드라이브 오류 페이지)를 반환할 때가 있어
+ * 실패 시 자동 재시도. (모든 POST 액션이 멱등이라 재시도 안전)
+ */
+async function fetchWithRetry(url: string, init?: RequestInit): Promise<Response> {
+  let lastError = new Error('GAS 요청 실패');
+  for (let attempt = 0; attempt <= RETRY_COUNT; attempt++) {
+    if (attempt > 0) await sleep(RETRY_BASE_DELAY_MS * attempt);
+    try {
+      const res = await fetch(url, init);
+      if (res.ok) return res;
+      lastError = new Error(`GAS 요청 실패: ${res.status} ${res.statusText}`);
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+    }
+  }
+  throw lastError;
+}
+
 /** GET 요청 헬퍼 */
 async function gasGet<T>(action: string, params?: Record<string, string>): Promise<T> {
   const url = new URL(GAS_WEB_APP_URL);
@@ -26,11 +54,7 @@ async function gasGet<T>(action: string, params?: Record<string, string>): Promi
     });
   }
 
-  const res = await fetch(url.toString());
-  if (!res.ok) {
-    throw new Error(`GAS 요청 실패: ${res.status} ${res.statusText}`);
-  }
-
+  const res = await fetchWithRetry(url.toString());
   const json: GasResponse<T> = await res.json();
   if (!json.success) {
     throw new Error(json.error || '알 수 없는 오류가 발생했습니다.');
@@ -40,15 +64,11 @@ async function gasGet<T>(action: string, params?: Record<string, string>): Promi
 
 /** POST 요청 헬퍼 */
 async function gasPost<T>(body: Record<string, unknown>): Promise<T> {
-  const res = await fetch(GAS_WEB_APP_URL, {
+  const res = await fetchWithRetry(GAS_WEB_APP_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain' },
     body: JSON.stringify(body),
   });
-
-  if (!res.ok) {
-    throw new Error(`GAS 요청 실패: ${res.status} ${res.statusText}`);
-  }
 
   const json: GasResponse<T> = await res.json();
   if (!json.success) {
