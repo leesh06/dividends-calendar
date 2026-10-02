@@ -2,39 +2,104 @@ import { useState, useCallback } from 'react';
 import { useAccountStore } from '../stores/accountStore';
 import { parseCapture, upsertHoldings, addAccount, updateQuotes, fetchDividends } from '../services/sheetsApi';
 import type { CaptureResult } from '../services/sheetsApi';
+import type { Account } from '../types';
 import ImageUploader from '../components/capture/ImageUploader';
 import Card from '../components/common/Card';
 import Spinner from '../components/common/Spinner';
 
 type Status = 'idle' | 'analyzing' | 'analyzed' | 'saving' | 'saved' | 'error';
+type CaptureHolding = CaptureResult['holdings'][number];
 
-/** 복수 OCR 결과를 하나로 합치기 (같은 종목명은 수량/금액 합산) */
+const UNKNOWN_BROKER = '알 수 없음';
+const MIXED_BROKER_ERROR = '서로 다른 증권사 캡처가 섞여 있어요. 증권사별로 따로 올려주세요.';
+
+/** 예수금(CASH_KRW / CASH_USD) 항목 여부 */
+function isCashTicker(ticker: string): boolean {
+  return ticker.startsWith('CASH');
+}
+
+/** 예수금은 수량 1 · 단가 = 금액으로 통일 (OCR이 단가 칸에 엉뚱한 값을 넣어도 화면에 보인 금액으로 저장) */
+function normalizeCash(h: CaptureHolding): CaptureHolding {
+  const amount = h.evalAmount || h.avgPrice || h.currentPrice || 0;
+  return {
+    ...h,
+    quantity: 1,
+    avgPrice: amount,
+    currentPrice: amount,
+    evalAmount: amount,
+    purchaseAmount: amount,
+    profitLoss: 0,
+  };
+}
+
+/** 같은 종목의 수량/금액을 existing에 합산 */
+function addInto(existing: CaptureHolding, h: CaptureHolding): void {
+  existing.quantity += h.quantity;
+  existing.evalAmount += h.evalAmount;
+  existing.purchaseAmount += h.purchaseAmount;
+  existing.profitLoss += h.profitLoss;
+  if (existing.quantity > 0) {
+    existing.avgPrice = existing.purchaseAmount / existing.quantity;
+    existing.currentPrice = existing.evalAmount / existing.quantity;
+  }
+}
+
+/** 판별된 증권사 목록 (중복 제거, '알 수 없음' 제외) */
+function knownBrokers(results: CaptureResult[]): string[] {
+  const brokers = results.map((r) => r.broker).filter((b) => b && b !== UNKNOWN_BROKER);
+  return Array.from(new Set(brokers));
+}
+
+/** 복수 OCR 결과를 하나로 합치기 (같은 종목명은 합산, 예수금은 합산하지 않고 마지막 값 사용) */
 function mergeResults(results: CaptureResult[]): CaptureResult {
-  const broker = results[0]?.broker || '알 수 없음';
-  const holdingsMap = new Map<string, CaptureResult['holdings'][number]>();
+  const broker = knownBrokers(results)[0] || UNKNOWN_BROKER;
+  const holdingsMap = new Map<string, CaptureHolding>();
 
   results.forEach((r) => {
     r.holdings.forEach((h) => {
-      // 종목명 기준으로 합산 (GPT가 같은 종목에 다른 코드를 부여할 수 있으므로)
-      // CASH 항목은 ticker 기준 유지
-      const key = h.ticker.startsWith('CASH') ? h.ticker : h.name;
-      const existing = holdingsMap.get(key);
-      if (existing) {
-        existing.quantity += h.quantity;
-        existing.evalAmount += h.evalAmount;
-        existing.purchaseAmount += h.purchaseAmount;
-        existing.profitLoss += h.profitLoss;
-        if (existing.quantity > 0) {
-          existing.avgPrice = existing.purchaseAmount / existing.quantity;
-          existing.currentPrice = existing.evalAmount / existing.quantity;
-        }
-      } else {
-        holdingsMap.set(key, { ...h });
+      // 예수금은 여러 장에 같은 금액이 반복 노출되므로 더하면 2배가 됨 → 덮어쓰기
+      if (isCashTicker(h.ticker)) {
+        holdingsMap.set(h.ticker, normalizeCash(h));
+        return;
       }
+      // 종목명 기준으로 합산 (GPT가 같은 종목에 다른 코드를 부여할 수 있으므로)
+      const existing = holdingsMap.get(h.name);
+      if (existing) addInto(existing, h);
+      else holdingsMap.set(h.name, { ...h });
     });
   });
 
   return { broker, holdings: Array.from(holdingsMap.values()) };
+}
+
+/** 증권사명으로 계좌 자동 매칭 (없으면 '') */
+function findAccountIdByBroker(accounts: Account[], broker: string): string {
+  if (!broker || broker === UNKNOWN_BROKER) return '';
+  const core = broker.replace('증권', '');
+  const match = accounts.find(
+    (a) => a.broker && (a.broker.includes(core) || broker.includes(a.broker.replace('증권', ''))),
+  );
+  return match?.accountId ?? '';
+}
+
+/** File → data URL(base64) */
+function readAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => resolve(e.target?.result as string);
+    reader.onerror = () => reject(new Error('이미지 읽기 실패'));
+    reader.readAsDataURL(file);
+  });
+}
+
+/** 이미지를 순서대로 OCR 분석 (GAS 동시 호출 부담을 줄이려고 직렬 처리) */
+async function analyzeAll(images: string[], onProgress: (done: number) => void): Promise<CaptureResult[]> {
+  const results: CaptureResult[] = [];
+  for (const image of images) {
+    results.push(await parseCapture(image));
+    onProgress(results.length);
+  }
+  return results;
 }
 
 export default function CapturePage() {
@@ -54,66 +119,45 @@ export default function CapturePage() {
   const [hasCashUsdInResult, setHasCashUsdInResult] = useState(false);
   const [analyzeProgress, setAnalyzeProgress] = useState({ done: 0, total: 0 });
 
+  /** 분석 결과 반영 + 예수금 인식 여부 + 계좌 자동 선택 (fresh = 새 계좌 작업 시작) */
+  const applyResult = useCallback((merged: CaptureResult, fresh: boolean) => {
+    const hasCashKrw = merged.holdings.some((h) => h.ticker === 'CASH_KRW');
+    const hasCashUsd = merged.holdings.some((h) => h.ticker === 'CASH_USD');
+    setResult(merged);
+    setStatus('analyzed');
+    setHasCashKrwInResult(hasCashKrw);
+    setHasCashUsdInResult(hasCashUsd);
+    // 새 계좌 작업이면 이전 계좌에 입력했던 수동 예수금이 따라오지 않도록 비움
+    if (fresh || hasCashKrw) setCashKrw('');
+    if (fresh || hasCashUsd) setCashUsd('');
+    const keepAccount = !fresh && selectedAccountId;
+    setSelectedAccountId(keepAccount ? selectedAccountId : findAccountIdByBroker(accounts, merged.broker));
+  }, [accounts, selectedAccountId]);
+
   const handleImageSelect = useCallback(async (files: File[]) => {
-    // 기존 미리보기에 추가
-    const newPreviews: string[] = [];
-    const base64List: string[] = [];
-
-    for (const file of files) {
-      const base64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = (e) => resolve(e.target?.result as string);
-        reader.onerror = () => reject(new Error('이미지 읽기 실패'));
-        reader.readAsDataURL(file);
-      });
-      newPreviews.push(base64);
-      base64List.push(base64);
-    }
-
-    setPreviews((prev) => [...prev, ...newPreviews]);
-
-    // 분석 시작
+    const images = await Promise.all(files.map(readAsDataUrl));
+    // 저장을 마친 뒤 올린 캡처는 다음 계좌 작업 → 이전 결과와 합치지 않음
+    const prev = status === 'saved' ? null : result;
+    setPreviews((p) => (prev ? [...p, ...images] : images));
     setStatus('analyzing');
     setError(null);
-
-    const total = base64List.length;
-    setAnalyzeProgress({ done: 0, total });
+    setAnalyzeProgress({ done: 0, total: images.length });
 
     try {
-      const ocrResults: CaptureResult[] = [];
-      // 기존 결과가 있으면 포함
-      if (result) ocrResults.push(result);
-
-      for (let i = 0; i < base64List.length; i++) {
-        const parsed = await parseCapture(base64List[i]);
-        ocrResults.push(parsed);
-        setAnalyzeProgress({ done: i + 1, total });
+      const parsed = await analyzeAll(images, (done) => setAnalyzeProgress({ done, total: images.length }));
+      if (knownBrokers(parsed).length > 1) {
+        setPreviews((p) => p.slice(0, p.length - images.length));
+        throw new Error(MIXED_BROKER_ERROR);
       }
-
-      const merged = mergeResults(ocrResults);
-      setResult(merged);
-      setStatus('analyzed');
-
-      const hasCashKrw = merged.holdings.some((h) => h.ticker === 'CASH_KRW');
-      const hasCashUsd = merged.holdings.some((h) => h.ticker === 'CASH_USD');
-      setHasCashKrwInResult(hasCashKrw);
-      setHasCashUsdInResult(hasCashUsd);
-      if (hasCashKrw) setCashKrw('');
-      if (hasCashUsd) setCashUsd('');
-
-      // 증권사에 맞는 계좌 자동 선택
-      if (merged.broker && accounts.length > 0 && !selectedAccountId) {
-        const match = accounts.find(
-          (a) => a.broker.includes(merged.broker.replace('증권', '')) ||
-                 merged.broker.includes(a.broker.replace('증권', ''))
-        );
-        if (match) setSelectedAccountId(match.accountId);
-      }
+      // 이전 결과와 증권사가 다르면 이어 붙이지 않고 새 계좌 작업으로 시작
+      const keep = prev && knownBrokers([prev, ...parsed]).length <= 1 ? prev : null;
+      if (!keep) setPreviews(images);
+      applyResult(mergeResults(keep ? [keep, ...parsed] : parsed), !keep);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'AI 분석 중 오류 발생');
       setStatus('error');
     }
-  }, [accounts, result, selectedAccountId]);
+  }, [status, result, applyResult]);
 
   const handleRemoveImage = useCallback((index: number) => {
     setPreviews((prev) => prev.filter((_, i) => i !== index));

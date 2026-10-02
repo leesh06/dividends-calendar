@@ -49,9 +49,12 @@ function doPost(e) {
     var action = body.action;
     var data;
 
+    // holdings 행을 추가/삭제하는 작업은 updateQuotes_와 겹치지 않도록 락 안에서 실행
     switch (action) {
       case 'upsertHoldings':
-        data = SheetsService.upsertHoldings(body.accountId, body.holdings);
+        data = withScriptLock_(function() {
+          return SheetsService.upsertHoldings(body.accountId, body.holdings);
+        });
         break;
       case 'addAccount':
         data = SheetsService.addAccount(body.account);
@@ -69,13 +72,19 @@ function doPost(e) {
         data = clearDividends_();
         break;
       case 'deleteAccount':
-        data = SheetsService.deleteAccount(body.accountId);
+        data = withScriptLock_(function() {
+          return SheetsService.deleteAccount(body.accountId);
+        });
         break;
       case 'deleteHolding':
-        data = SheetsService.deleteHolding(body.accountId, body.ticker);
+        data = withScriptLock_(function() {
+          return SheetsService.deleteHolding(body.accountId, body.ticker);
+        });
         break;
       case 'resetAll':
-        data = SheetsService.resetAll();
+        data = withScriptLock_(function() {
+          return SheetsService.resetAll();
+        });
         break;
       case 'dedupeDividends':
         data = SheetsService.dedupeDividends();
@@ -224,7 +233,26 @@ function getQuotes_() {
   return quotes;
 }
 
-/** holdings 시트의 currentPrice를 Yahoo 현재가로 업데이트 */
+/** 시트 쓰기 작업 직렬화용 락 대기 시간 (ms) */
+var LOCK_WAIT_MS = 30000;
+
+/**
+ * 스크립트 락을 잡고 fn 실행
+ * 현재가 갱신 · 캡처 저장 · 삭제가 동시에 돌면 행 번호가 밀려
+ * 다른 종목의 현재가가 엉뚱한 행(예수금, 빈 행)에 써지는 문제를 막음
+ */
+function withScriptLock_(fn) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(LOCK_WAIT_MS);
+  try {
+    return fn();
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/** holdings 시트의 currentPrice를 Yahoo 현재가로 업데이트
+ *  시세 조회(느림)는 락 밖에서, 시트 읽기~쓰기는 락 안에서 한 번에 처리 */
 function updateQuotes_() {
   var quotes = getQuotes_();
   var ss = SpreadsheetApp.openById(
@@ -233,24 +261,35 @@ function updateQuotes_() {
   var sheet = ss.getSheetByName('holdings');
   if (!sheet) throw new Error('holdings 시트를 찾을 수 없습니다.');
 
+  return withScriptLock_(function() {
+    return writeQuotes_(sheet, quotes);
+  });
+}
+
+/** 현재가를 메모리에서 반영한 뒤 컬럼 단위로 한 번에 기록 (행별 setValue 중 행 밀림 방지) */
+function writeQuotes_(sheet, quotes) {
   var data = sheet.getDataRange().getValues();
+  if (data.length < 2) return { updated: 0 };
   var headers = data[0];
   var tickerCol = headers.indexOf('ticker');
   var priceCol = headers.indexOf('currentPrice');
   var updatedCol = headers.indexOf('updatedAt');
-  var updated = 0;
   var now = Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyy-MM-dd');
+  var prices = [];
+  var dates = [];
+  var updated = 0;
 
   for (var i = 1; i < data.length; i++) {
     var ticker = data[i][tickerCol];
-    if (quotes[ticker] !== undefined) {
-      sheet.getRange(i + 1, priceCol + 1).setValue(quotes[ticker]);
-      if (updatedCol >= 0) {
-        sheet.getRange(i + 1, updatedCol + 1).setValue(now);
-      }
-      updated++;
-    }
+    var hit = ticker && ticker.toString().indexOf('CASH') !== 0 && quotes[ticker] !== undefined;
+    prices.push([hit ? quotes[ticker] : data[i][priceCol]]);
+    dates.push([hit ? now : data[i][updatedCol]]);
+    if (hit) updated++;
   }
+
+  if (updated === 0) return { updated: 0 };
+  sheet.getRange(2, priceCol + 1, prices.length, 1).setValues(prices);
+  if (updatedCol >= 0) sheet.getRange(2, updatedCol + 1, dates.length, 1).setValues(dates);
   return { updated: updated };
 }
 
