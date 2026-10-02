@@ -247,6 +247,9 @@ function withScriptLock_(fn) {
   try {
     return fn();
   } finally {
+    // 시트 쓰기는 버퍼링됨 → 락을 풀기 전에 반영해야 다른 실행이 밀린 행 위에 덮어쓰지 않음
+    // (공식 문서 권장: https://developers.google.com/apps-script/reference/lock/lock)
+    SpreadsheetApp.flush();
     lock.releaseLock();
   }
 }
@@ -266,30 +269,43 @@ function updateQuotes_() {
   });
 }
 
+/** 행 하나의 새 현재가 (시세 있으면 시세 / 예수금이면 avgPrice로 복구 / 그 외 기존값) */
+function nextPrice_(row, cols, quotes) {
+  var ticker = row[cols.ticker];
+  if (!ticker) return { price: row[cols.price], hit: false };
+  if (ticker.toString().indexOf('CASH') === 0) {
+    // 예수금은 avgPrice가 곧 금액 → 현재가 칸이 오염돼 있어도 매번 원래 값으로 되돌림
+    return { price: row[cols.avg] || row[cols.price], hit: false };
+  }
+  if (quotes[ticker] === undefined) return { price: row[cols.price], hit: false };
+  return { price: quotes[ticker], hit: true };
+}
+
 /** 현재가를 메모리에서 반영한 뒤 컬럼 단위로 한 번에 기록 (행별 setValue 중 행 밀림 방지) */
 function writeQuotes_(sheet, quotes) {
   var data = sheet.getDataRange().getValues();
   if (data.length < 2) return { updated: 0 };
   var headers = data[0];
-  var tickerCol = headers.indexOf('ticker');
-  var priceCol = headers.indexOf('currentPrice');
-  var updatedCol = headers.indexOf('updatedAt');
+  var cols = {
+    ticker: headers.indexOf('ticker'),
+    avg: headers.indexOf('avgPrice'),
+    price: headers.indexOf('currentPrice'),
+    date: headers.indexOf('updatedAt')
+  };
   var now = Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyy-MM-dd');
   var prices = [];
   var dates = [];
   var updated = 0;
 
   for (var i = 1; i < data.length; i++) {
-    var ticker = data[i][tickerCol];
-    var hit = ticker && ticker.toString().indexOf('CASH') !== 0 && quotes[ticker] !== undefined;
-    prices.push([hit ? quotes[ticker] : data[i][priceCol]]);
-    dates.push([hit ? now : data[i][updatedCol]]);
-    if (hit) updated++;
+    var next = nextPrice_(data[i], cols, quotes);
+    prices.push([next.price]);
+    dates.push([next.hit ? now : data[i][cols.date]]);
+    if (next.hit) updated++;
   }
 
-  if (updated === 0) return { updated: 0 };
-  sheet.getRange(2, priceCol + 1, prices.length, 1).setValues(prices);
-  if (updatedCol >= 0) sheet.getRange(2, updatedCol + 1, dates.length, 1).setValues(dates);
+  sheet.getRange(2, cols.price + 1, prices.length, 1).setValues(prices);
+  if (cols.date >= 0) sheet.getRange(2, cols.date + 1, dates.length, 1).setValues(dates);
   return { updated: updated };
 }
 

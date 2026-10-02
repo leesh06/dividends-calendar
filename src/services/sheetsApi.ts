@@ -87,12 +87,16 @@ function normalizeHoldings(holdings: Holding[]): Holding[] {
       if (/^\d+$/.test(ticker) && ticker.length < 6) {
         ticker = ticker.padStart(6, '0');
       }
+      const avgPrice = Number(h.avgPrice) || 0;
+      const currentPrice = Number(h.currentPrice) || 0;
+      // 예수금은 avgPrice가 곧 금액 (currentPrice 칸은 GAS 현재가 갱신 경합으로 오염된 이력 있음)
+      const isCash = ticker.startsWith('CASH');
       return {
         ...h,
         ticker,
         quantity: Number(h.quantity) || 0,
-        avgPrice: Number(h.avgPrice) || 0,
-        currentPrice: Number(h.currentPrice) || 0,
+        avgPrice,
+        currentPrice: isCash && avgPrice > 0 ? avgPrice : currentPrice,
       };
     })
     .filter((h) => h.quantity > 0 && (h.ticker.startsWith('CASH') || h.currentPrice > 0));
