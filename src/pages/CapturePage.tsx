@@ -11,7 +11,6 @@ type Status = 'idle' | 'analyzing' | 'analyzed' | 'saving' | 'saved' | 'error';
 type CaptureHolding = CaptureResult['holdings'][number];
 
 const UNKNOWN_BROKER = '알 수 없음';
-const MIXED_BROKER_ERROR = '서로 다른 증권사 캡처가 섞여 있어요. 증권사별로 따로 올려주세요.';
 
 /** 예수금(CASH_KRW / CASH_USD) 항목 여부 */
 function isCashTicker(ticker: string): boolean {
@@ -118,20 +117,24 @@ export default function CapturePage() {
   const [hasCashKrwInResult, setHasCashKrwInResult] = useState(false);
   const [hasCashUsdInResult, setHasCashUsdInResult] = useState(false);
   const [analyzeProgress, setAnalyzeProgress] = useState({ done: 0, total: 0 });
+  const [brokerLabels, setBrokerLabels] = useState<string[]>([]);
 
-  /** 분석 결과 반영 + 예수금 인식 여부 + 계좌 자동 선택 (fresh = 새 계좌 작업 시작) */
-  const applyResult = useCallback((merged: CaptureResult, fresh: boolean) => {
+  /** 분석 결과 반영 + 예수금 인식 여부 + 계좌 자동 선택 (fresh = 새 계좌 작업 시작, labels = 캡처별로 인식된 증권사명) */
+  const applyResult = useCallback((merged: CaptureResult, fresh: boolean, labels: string[]) => {
     const hasCashKrw = merged.holdings.some((h) => h.ticker === 'CASH_KRW');
     const hasCashUsd = merged.holdings.some((h) => h.ticker === 'CASH_USD');
     setResult(merged);
     setStatus('analyzed');
+    setBrokerLabels(labels);
     setHasCashKrwInResult(hasCashKrw);
     setHasCashUsdInResult(hasCashUsd);
     // 새 계좌 작업이면 이전 계좌에 입력했던 수동 예수금이 따라오지 않도록 비움
     if (fresh || hasCashKrw) setCashKrw('');
     if (fresh || hasCashUsd) setCashUsd('');
     const keepAccount = !fresh && selectedAccountId;
-    setSelectedAccountId(keepAccount ? selectedAccountId : findAccountIdByBroker(accounts, merged.broker));
+    // 증권사 인식이 엇갈리면 자동 매칭이 엉뚱한 계좌를 고를 수 있으므로 직접 선택하게 둠
+    const matched = labels.length > 1 ? '' : findAccountIdByBroker(accounts, merged.broker);
+    setSelectedAccountId(keepAccount ? selectedAccountId : matched);
   }, [accounts, selectedAccountId]);
 
   const handleImageSelect = useCallback(async (files: File[]) => {
@@ -145,19 +148,14 @@ export default function CapturePage() {
 
     try {
       const parsed = await analyzeAll(images, (done) => setAnalyzeProgress({ done, total: images.length }));
-      if (knownBrokers(parsed).length > 1) {
-        setPreviews((p) => p.slice(0, p.length - images.length));
-        throw new Error(MIXED_BROKER_ERROR);
-      }
-      // 이전 결과와 증권사가 다르면 이어 붙이지 않고 새 계좌 작업으로 시작
-      const keep = prev && knownBrokers([prev, ...parsed]).length <= 1 ? prev : null;
-      if (!keep) setPreviews(images);
-      applyResult(mergeResults(keep ? [keep, ...parsed] : parsed), !keep);
+      // 증권사명은 OCR 추정값이라 같은 증권사도 화면(국내/해외 잔고)에 따라 다르게 나올 수 있음 → 막지 않고 안내만
+      const labels = Array.from(new Set([...(prev ? brokerLabels : []), ...knownBrokers(parsed)]));
+      applyResult(mergeResults(prev ? [prev, ...parsed] : parsed), !prev, labels);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'AI 분석 중 오류 발생');
       setStatus('error');
     }
-  }, [status, result, applyResult]);
+  }, [status, result, brokerLabels, applyResult]);
 
   const handleRemoveImage = useCallback((index: number) => {
     setPreviews((prev) => prev.filter((_, i) => i !== index));
@@ -241,7 +239,7 @@ export default function CapturePage() {
     } catch {
       setError('계좌 추가 실패');
     }
-  }, [newAccountName, newBroker, newCurrency, addAccountToStore]);
+  }, [accounts, newAccountName, newBroker, newCurrency, addAccountToStore]);
 
   const handleReset = useCallback(() => {
     setPreviews([]);
@@ -254,6 +252,7 @@ export default function CapturePage() {
     setHasCashKrwInResult(false);
     setHasCashUsdInResult(false);
     setAnalyzeProgress({ done: 0, total: 0 });
+    setBrokerLabels([]);
   }, []);
 
   /** 숫자 포맷 (1000 → 1,000) */
@@ -310,6 +309,18 @@ export default function CapturePage() {
               </span>
             </div>
           </Card>
+
+          {/* 캡처마다 증권사가 다르게 인식된 경우 안내 (저장은 막지 않음) */}
+          {brokerLabels.length > 1 && (
+            <Card className="!p-3 border-yellow-500/30">
+              <p className="text-xs text-yellow-400">
+                캡처마다 증권사가 다르게 인식됐어요 ({brokerLabels.join(', ')}).
+              </p>
+              <p className="text-xs text-dark-text-muted mt-1">
+                같은 계좌 캡처가 맞다면 저장할 계좌를 직접 고른 뒤 저장하세요. 다른 계좌가 섞였다면 초기화 후 따로 올려주세요.
+              </p>
+            </Card>
+          )}
 
           {/* 종목 목록 */}
           <div className="space-y-2">
